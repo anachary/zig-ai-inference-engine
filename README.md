@@ -278,6 +278,7 @@ zig build run-simple_inference
 
 - [Getting Started Guide](GETTING_STARTED.md) - Quick start and setup instructions
 - [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md) - Detailed development guide
+- [Zig Memory Model](docs/ZIG_MEMORY_MODEL.md) - Complete guide to memory layout and allocation
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 
 ## Contributing
