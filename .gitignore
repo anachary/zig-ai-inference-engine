@@ -1,0 +1,65 @@
+# Zig build artifacts
+zig-cache/
+zig-out/
+
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.obj
+*.o
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Coverage reports
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Profiling data
+*.prof
+*.pprof
+
+# Local configuration
+.env
+.env.local
+
+# Documentation build artifacts
+docs/_build/
+docs/site/
+
+# Backup files
+*.bak
+*.backup
+
+# Test artifacts
+test-results/
+test-output/
+
+# Benchmark results
+benchmark-results/
