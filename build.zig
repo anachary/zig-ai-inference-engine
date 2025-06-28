@@ -54,6 +54,21 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
+    // Phase 2 Integration Tests
+    const integration_tests = b.addTest(.{
+        .root_source_file = .{ .path = "tests/integration/phase2_integration_test.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    integration_tests.linkLibrary(lib);
+    integration_tests.addModule("zig-ai-engine", b.createModule(.{
+        .source_file = .{ .path = "src/lib.zig" },
+    }));
+
+    const run_integration_tests = b.addRunArtifact(integration_tests);
+    const integration_test_step = b.step("test-integration", "Run Phase 2 integration tests");
+    integration_test_step.dependOn(&run_integration_tests.step);
+
     // Benchmarks
     const benchmarks = b.addExecutable(.{
         .name = "benchmarks",
@@ -67,12 +82,32 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&run_benchmarks.step);
 
+    // Phase 2 Benchmarks
+    const phase2_benchmarks = b.addExecutable(.{
+        .name = "phase2_benchmarks",
+        .root_source_file = .{ .path = "benchmarks/phase2_benchmarks.zig" },
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+
+    phase2_benchmarks.linkLibrary(lib);
+    phase2_benchmarks.addModule("zig-ai-engine", b.createModule(.{
+        .source_file = .{ .path = "src/lib.zig" },
+    }));
+    const run_phase2_benchmarks = b.addRunArtifact(phase2_benchmarks);
+    const phase2_bench_step = b.step("bench-phase2", "Run Phase 2 performance benchmarks");
+    phase2_bench_step.dependOn(&run_phase2_benchmarks.step);
+
     // Examples
     const examples = [_][]const u8{
         "simple_inference",
         "model_loading",
         "custom_operator",
         "phase1_demo",
+        "computation_graph",
+        "enhanced_operators",
+        "gpu_demo", // Phase 2: GPU Support Foundation
+        "phase2_complete_demo", // Phase 2: Complete System Demo
     };
 
     for (examples) |example| {

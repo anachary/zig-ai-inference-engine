@@ -6,6 +6,10 @@ const pool = @import("../memory/pool.zig");
 const operators = @import("operators.zig");
 const registry = @import("registry.zig");
 const network = @import("../network/server.zig");
+const formats = @import("../formats/model.zig");
+const onnx = @import("../formats/onnx/parser.zig");
+const executor = @import("executor.zig");
+const optimizer = @import("optimizer.zig");
 
 pub const InferenceError = error{
     ModelNotLoaded,
@@ -23,6 +27,10 @@ pub const InferenceEngine = struct {
     execution_context: registry.ExecutionContext,
     server: ?network.HTTPServer,
     model_loaded: bool,
+    loaded_model: ?formats.Model,
+    onnx_parser: onnx.ONNXParser,
+    model_executor: executor.ModelExecutor,
+    graph_optimizer: optimizer.GraphOptimizer,
     config: Config,
 
     const Self = @This();
@@ -56,11 +64,16 @@ pub const InferenceEngine = struct {
             .execution_context = undefined, // Will be initialized below
             .server = null,
             .model_loaded = false,
+            .loaded_model = null,
+            .onnx_parser = onnx.ONNXParser.init(allocator),
+            .model_executor = undefined, // Will be initialized below
+            .graph_optimizer = optimizer.GraphOptimizer.init(allocator, .{}),
             .config = engine_config,
         };
 
         try self.operator_registry.register_builtin_operators();
         self.execution_context = registry.ExecutionContext.init(allocator);
+        self.model_executor = executor.ModelExecutor.init(allocator, &self.operator_registry, engine_config.enable_profiling);
 
         return self;
     }
@@ -69,6 +82,10 @@ pub const InferenceEngine = struct {
         if (self.server) |*server| {
             server.deinit();
         }
+        if (self.loaded_model) |*model| {
+            model.deinit();
+        }
+        self.model_executor.deinit();
         self.execution_context.deinit();
         self.operator_registry.deinit();
         self.tensor_pool.deinit();
@@ -77,26 +94,53 @@ pub const InferenceEngine = struct {
     }
 
     pub fn loadModel(self: *Self, model_path: []const u8) !void {
-        _ = model_path;
+        std.log.info("Loading model from: {s}", .{model_path});
 
-        // TODO: Implement model loading
-        std.log.info("Model loading not yet implemented", .{});
-        self.model_loaded = true;
+        // Determine model format from file extension
+        const format = formats.ModelFormat.fromPath(model_path);
+
+        switch (format) {
+            .onnx => {
+                std.log.info("Detected ONNX model format", .{});
+                self.loaded_model = try self.onnx_parser.parseFile(model_path);
+                try self.loaded_model.?.validate();
+
+                // Load model into executor
+                try self.model_executor.loadModel(&self.loaded_model.?);
+
+                self.model_loaded = true;
+                std.log.info("ONNX model loaded and prepared for execution", .{});
+            },
+            else => {
+                std.log.err("Unsupported model format: {}", .{format});
+                return InferenceError.ModelNotLoaded;
+            },
+        }
     }
 
     pub fn infer(self: *Self, input: tensor.Tensor) !tensor.Tensor {
         if (!self.model_loaded) return InferenceError.ModelNotLoaded;
 
-        // TODO: Implement actual inference
-        _ = input;
+        const inputs = [_]tensor.Tensor{input};
+        const outputs = try self.model_executor.execute(&inputs);
 
-        // For now, return a dummy tensor
-        const shape = [_]usize{1};
-        return tensor.Tensor.init(self.allocator, &shape, .f32);
+        if (outputs.len == 0) {
+            return InferenceError.ModelNotLoaded;
+        }
+
+        // Return first output (caller owns the memory)
+        return outputs[0];
+    }
+
+    pub fn inferBatch(self: *Self, inputs: []tensor.Tensor) ![]tensor.Tensor {
+        if (!self.model_loaded) return InferenceError.ModelNotLoaded;
+
+        return self.model_executor.execute(inputs);
     }
 
     pub fn startServer(self: *Self, port: u16) !void {
         self.server = try network.HTTPServer.init(self.allocator, port);
+        self.server.?.setInferenceEngine(self);
         try self.server.?.start();
     }
 

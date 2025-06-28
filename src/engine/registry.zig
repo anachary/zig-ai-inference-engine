@@ -1,6 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const operators = @import("operators.zig");
+const conv = @import("operators/conv.zig");
+const pool = @import("operators/pool.zig");
+const activation = @import("operators/activation.zig");
 
 pub const RegistryError = error{
     OperatorNotFound,
@@ -98,12 +101,34 @@ pub const OperatorRegistry = struct {
 
     /// Register all built-in operators
     pub fn register_builtin_operators(self: *Self) !void {
+        // Basic arithmetic operators
         try self.register("Add", operators.Add.op);
         try self.register("Sub", operators.Sub.op);
         try self.register("Mul", operators.Mul.op);
-        try self.register("ReLU", operators.ReLU.op);
         try self.register("MatMul", operators.MatMul.op);
+
+        // Basic activation functions
+        try self.register("ReLU", operators.ReLU.op);
         try self.register("Softmax", operators.Softmax.op);
+
+        // Enhanced activation functions
+        try self.register("Sigmoid", activation.Sigmoid.op);
+        try self.register("Tanh", activation.Tanh.op);
+        try self.register("GELU", activation.GELU.op);
+        try self.register("Swish", activation.Swish.op);
+        try self.register("LeakyReLU", activation.LeakyReLU.op);
+        try self.register("ELU", activation.ELU.op);
+
+        // Convolution operators
+        try self.register("Conv2D", conv.Conv2D.op);
+        try self.register("DepthwiseConv2D", conv.DepthwiseConv2D.op);
+        try self.register("ConvTranspose2D", conv.ConvTranspose2D.op);
+
+        // Pooling operators
+        try self.register("MaxPool2D", pool.MaxPool2D.op);
+        try self.register("AvgPool2D", pool.AvgPool2D.op);
+        try self.register("GlobalAvgPool2D", pool.GlobalAvgPool2D.op);
+        try self.register("AdaptiveAvgPool2D", pool.AdaptiveAvgPool2D.op);
     }
 
     /// Get registry statistics

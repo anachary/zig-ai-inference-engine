@@ -123,6 +123,20 @@ pub const Tensor = struct {
         data_ptr[offset / 4] = value;
     }
 
+    pub fn get_f32_flat(self: *const Self, index: usize) !f32 {
+        if (self.dtype != .f32) return TensorError.UnsupportedDataType;
+        if (index >= self.numel()) return TensorError.IndexOutOfBounds;
+        const data_ptr = @as([*]const f32, @ptrCast(@alignCast(self.data.ptr)));
+        return data_ptr[index];
+    }
+
+    pub fn set_f32_flat(self: *Self, index: usize, value: f32) !void {
+        if (self.dtype != .f32) return TensorError.UnsupportedDataType;
+        if (index >= self.numel()) return TensorError.IndexOutOfBounds;
+        const data_ptr = @as([*]f32, @ptrCast(@alignCast(self.data.ptr)));
+        data_ptr[index] = value;
+    }
+
     fn compute_offset(self: *const Self, indices: []const usize) !usize {
         if (indices.len != self.shape.len) return TensorError.IndexOutOfBounds;
 

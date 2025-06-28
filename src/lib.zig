@@ -11,6 +11,14 @@ pub const operators = @import("engine/operators.zig");
 pub const registry = @import("engine/registry.zig");
 pub const scheduler = @import("scheduler/task_queue.zig");
 pub const network = @import("network/server.zig");
+pub const formats = @import("formats/model.zig");
+pub const onnx = @import("formats/onnx/parser.zig");
+pub const graph = @import("engine/graph.zig");
+pub const executor = @import("engine/executor.zig");
+pub const optimizer = @import("engine/optimizer.zig");
+
+// GPU support (Phase 2)
+pub const gpu = @import("gpu/mod.zig");
 
 // Re-export main types
 pub const Tensor = tensor.Tensor;
@@ -24,6 +32,11 @@ pub const OperatorRegistry = registry.OperatorRegistry;
 pub const Scheduler = scheduler.TaskScheduler;
 pub const Server = network.HTTPServer;
 
+// GPU types (Phase 2)
+pub const GPUContext = gpu.GPUContext;
+pub const GPUDevice = gpu.GPUDevice;
+pub const GPUBuffer = gpu.GPUBuffer;
+
 // Version information
 pub const version = std.SemanticVersion{
     .major = 0,
@@ -34,7 +47,7 @@ pub const version = std.SemanticVersion{
 // Feature flags
 pub const features = struct {
     pub const simd_support = true;
-    pub const gpu_support = false; // TODO: Implement
+    pub const gpu_support = true; // Phase 2: GPU Support Foundation
     pub const privacy_sandbox = false; // TODO: Implement
     pub const distributed_inference = false; // TODO: Implement
 };
