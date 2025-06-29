@@ -1,6 +1,22 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+/// Model size categories for memory estimation
+///
+/// These categories help estimate memory requirements per token based on model complexity:
+/// - Tiny: < 100M parameters (e.g., DistilBERT, TinyBERT)
+/// - Small: 100M - 1B parameters (e.g., GPT-2 small, BERT-base)
+/// - Medium: 1B - 7B parameters (e.g., GPT-2 large, LLaMA-7B)
+/// - Large: 7B - 30B parameters (e.g., LLaMA-13B, GPT-3)
+/// - XLarge: 30B+ parameters (e.g., LLaMA-65B, GPT-4)
+pub const ModelSizeCategory = enum {
+    tiny,
+    small,
+    medium,
+    large,
+    xlarge,
+};
+
 /// GPU device types supported by the Zig AI Interface Engine
 ///
 /// The engine supports multiple compute backends with automatic fallback:
@@ -170,11 +186,11 @@ pub const GPUDevice = struct {
     }
 
     /// Get current memory usage statistics
-    pub fn getMemoryInfo(self: *const Self) struct { total: usize, free: usize, used: usize } {
+    pub fn getMemoryInfo(self: *const Self) struct { total: usize, available: usize, used: usize } {
         const used = self.capabilities.memory_total - self.capabilities.memory_free;
         return .{
             .total = self.capabilities.memory_total,
-            .free = self.capabilities.memory_free,
+            .available = self.capabilities.memory_free,
             .used = used,
         };
     }
@@ -185,6 +201,58 @@ pub const GPUDevice = struct {
         return memory_mb <= 4096 and // Max 4GB for IoT constraints
             self.capabilities.device_type != .cuda or // Prefer non-CUDA for IoT
             memory_mb <= 2048; // Smaller CUDA devices acceptable
+    }
+
+    /// Calculate maximum tokens that can be processed based on available memory
+    ///
+    /// This function estimates the maximum number of tokens that can be processed
+    /// given the current available memory and model requirements.
+    ///
+    /// Memory allocation breakdown per token:
+    /// - Input embeddings: ~4-8 bytes per token (fp32/fp16)
+    /// - Attention matrices: ~16-32 bytes per token (sequence length dependent)
+    /// - Hidden states: ~8-16 bytes per token per layer
+    /// - Output logits: ~4 bytes per token * vocabulary size
+    ///
+    /// Conservative estimate: ~64 bytes per token for small models
+    /// Realistic estimate: ~128-256 bytes per token for medium models
+    /// Large models: ~512-1024 bytes per token
+    pub fn calculateMaxTokens(self: *const Self, model_size_category: ModelSizeCategory) u32 {
+        const memory_info = self.getMemoryInfo();
+
+        // Reserve 25% of memory for model weights and overhead
+        const usable_memory = (memory_info.available * 3) / 4;
+
+        // Bytes per token based on model size
+        const bytes_per_token: usize = switch (model_size_category) {
+            .tiny => 32, // Very small models (< 100M params)
+            .small => 64, // Small models (100M - 1B params)
+            .medium => 128, // Medium models (1B - 7B params)
+            .large => 256, // Large models (7B - 30B params)
+            .xlarge => 512, // Extra large models (30B+ params)
+        };
+
+        // Calculate max tokens with safety margin
+        const theoretical_max = usable_memory / bytes_per_token;
+
+        // Apply practical limits based on device type and capabilities
+        const device_limit: u32 = switch (self.capabilities.device_type) {
+            .cpu => if (self.isIoTSuitable()) 512 else 2048,
+            .cuda => 8192,
+            .vulkan => 4096,
+            .opencl => 2048,
+        };
+
+        // Return the minimum of theoretical and practical limits
+        return @min(@as(u32, @intCast(@min(theoretical_max, std.math.maxInt(u32)))), device_limit);
+    }
+
+    /// Get recommended token limit for optimal performance
+    pub fn getRecommendedTokenLimit(self: *const Self, model_size_category: ModelSizeCategory) u32 {
+        const max_tokens = self.calculateMaxTokens(model_size_category);
+
+        // Return 75% of max for optimal performance with headroom
+        return (max_tokens * 3) / 4;
     }
 
     /// Private: Detect the best available GPU device

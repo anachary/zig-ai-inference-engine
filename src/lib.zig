@@ -20,6 +20,19 @@ pub const optimizer = @import("engine/optimizer.zig");
 // GPU support (Phase 2)
 pub const gpu = @import("gpu/mod.zig");
 
+// LLM support
+pub const llm = struct {
+    pub const TextGenerator = @import("llm/text_generator.zig").TextGenerator;
+    pub const KnowledgeBase = @import("llm/knowledge_base.zig").KnowledgeBase;
+    pub const GenerationConfig = @import("llm/text_generator.zig").GenerationConfig;
+};
+
+// Model management
+pub const models = struct {
+    pub const ModelManager = @import("models/tiny_models.zig").ModelManager;
+    pub const TinyModelInfo = @import("models/tiny_models.zig").TinyModelInfo;
+};
+
 // Re-export main types
 pub const Tensor = tensor.Tensor;
 pub const DataType = tensor.DataType;

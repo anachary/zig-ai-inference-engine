@@ -22,6 +22,7 @@ pub const kernels = @import("kernels.zig");
 pub const GPUDevice = device.GPUDevice;
 pub const DeviceType = device.DeviceType;
 pub const DeviceCapabilities = device.DeviceCapabilities;
+pub const ModelSizeCategory = device.ModelSizeCategory;
 pub const GPUBuffer = memory.GPUBuffer;
 pub const GPUMemoryPool = memory.GPUMemoryPool;
 pub const MemoryType = memory.MemoryType;
@@ -171,7 +172,7 @@ pub const GPUContext = struct {
 
     /// Get memory usage statistics
     pub fn getMemoryStats(self: *const Self) struct {
-        device_memory: struct { total: usize, free: usize, used: usize },
+        device_memory: struct { total: usize, available: usize, used: usize },
         pool_stats: struct { total_allocated: usize, peak_usage: usize, free_blocks: usize, allocated_blocks: usize },
     } {
         const device_info = self.device.getMemoryInfo();
@@ -180,7 +181,7 @@ pub const GPUContext = struct {
         return .{
             .device_memory = .{
                 .total = device_info.total,
-                .free = device_info.free,
+                .available = device_info.available,
                 .used = device_info.used,
             },
             .pool_stats = .{

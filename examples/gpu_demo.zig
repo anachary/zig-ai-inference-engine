@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("zig-ai-engine");
+const lib = @import("zig-ai-inference");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -63,9 +63,9 @@ pub fn main() !void {
     defer gpu_context.freeBuffer(buffer2) catch {};
 
     const memory_stats = gpu_context.getMemoryStats();
-    std.log.info("💾 Device Memory - Total: {d}MB, Free: {d}MB, Used: {d}MB", .{
+    std.log.info("💾 Device Memory - Total: {d}MB, Available: {d}MB, Used: {d}MB", .{
         memory_stats.device_memory.total / (1024 * 1024),
-        memory_stats.device_memory.free / (1024 * 1024),
+        memory_stats.device_memory.available / (1024 * 1024),
         memory_stats.device_memory.used / (1024 * 1024),
     });
     std.log.info("🏊 Memory Pool - Allocated: {d}KB, Peak: {d}KB, Blocks: {d}", .{

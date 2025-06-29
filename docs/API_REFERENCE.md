@@ -1,8 +1,8 @@
-# API Reference - Zig AI Interface Engine
+# API Reference - Zig AI Inference Engine
 
 ## Overview
 
-This document provides comprehensive API documentation for the Zig AI Interface Engine, covering all major components and their usage patterns.
+This document provides comprehensive API documentation for the Zig AI Inference Engine, covering all major components and their usage patterns.
 
 **Phase 2 Status: ✅ Complete API Implementation**
 

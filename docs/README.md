@@ -1,8 +1,8 @@
-# Documentation Index - Zig AI Interface Engine
+# Documentation Index - Zig AI Inference Engine
 
 ## Overview
 
-This directory contains comprehensive documentation for the Zig AI Interface Engine, covering architecture, implementation, APIs, and usage patterns.
+This directory contains comprehensive documentation for the Zig AI Inference Engine, covering architecture, implementation, APIs, and usage patterns.
 
 **Phase 2 Status: ✅ Complete Documentation Suite**
 

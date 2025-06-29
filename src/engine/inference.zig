@@ -111,6 +111,17 @@ pub const InferenceEngine = struct {
                 self.model_loaded = true;
                 std.log.info("ONNX model loaded and prepared for execution", .{});
             },
+            .built_in_generic => {
+                std.log.info("Loading built-in generic model", .{});
+                self.loaded_model = try formats.Model.load(self.allocator, model_path);
+                try self.loaded_model.?.validate();
+
+                // Load model into executor
+                try self.model_executor.loadModel(&self.loaded_model.?);
+
+                self.model_loaded = true;
+                std.log.info("Built-in model loaded and prepared for execution", .{});
+            },
             else => {
                 std.log.err("Unsupported model format: {}", .{format});
                 return InferenceError.ModelNotLoaded;
@@ -121,8 +132,8 @@ pub const InferenceEngine = struct {
     pub fn infer(self: *Self, input: tensor.Tensor) !tensor.Tensor {
         if (!self.model_loaded) return InferenceError.ModelNotLoaded;
 
-        const inputs = [_]tensor.Tensor{input};
-        const outputs = try self.model_executor.execute(&inputs);
+        var inputs = [_]tensor.Tensor{input};
+        const outputs = try self.model_executor.execute(inputs[0..]);
 
         if (outputs.len == 0) {
             return InferenceError.ModelNotLoaded;

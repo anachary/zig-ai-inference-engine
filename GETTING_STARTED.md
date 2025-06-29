@@ -1,8 +1,8 @@
-# Getting Started with Zig AI Interface Engine
+# Getting Started with Zig AI Inference Engine
 
 ## 🎉 Phase 1 Complete - Fully Functional!
 
-**The Zig AI Interface Engine Phase 1 is complete and working!** All core features are implemented and tested.
+**The Zig AI Inference Engine Phase 1 is complete and working!** All core features are implemented and tested.
 
 ## Quick Start
 
@@ -14,7 +14,7 @@
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd zig-ai-interface-engine
+cd zig-ai-inference-engine
 
 # Build the project
 zig build
@@ -82,7 +82,7 @@ zig build run -- --port 8080 --threads 4
 ### Tensor Operations
 ```zig
 const std = @import("std");
-const lib = @import("zig-ai-engine");
+const lib = @import("zig-ai-inference");
 
 // Create tensors with automatic pooling
 var tensor = try engine.get_tensor(&[_]usize{2, 3}, .f32);

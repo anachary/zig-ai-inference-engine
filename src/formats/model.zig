@@ -16,11 +16,13 @@ pub const ModelFormat = enum {
     tensorflow_lite,
     pytorch_jit,
     custom_binary,
+    built_in_generic, // New: Built-in lightweight model
 
     pub fn fromPath(path: []const u8) ModelFormat {
         if (std.mem.endsWith(u8, path, ".onnx")) return .onnx;
         if (std.mem.endsWith(u8, path, ".tflite")) return .tensorflow_lite;
         if (std.mem.endsWith(u8, path, ".pt") or std.mem.endsWith(u8, path, ".pth")) return .pytorch_jit;
+        if (std.mem.eql(u8, path, "built-in") or std.mem.eql(u8, path, "generic")) return .built_in_generic;
         return .custom_binary;
     }
 };
@@ -308,6 +310,7 @@ pub const Model = struct {
             .tensorflow_lite => ModelError.UnsupportedVersion, // TODO: Implement
             .pytorch_jit => ModelError.UnsupportedVersion, // TODO: Implement
             .custom_binary => loadCustomBinary(allocator, path),
+            .built_in_generic => loadBuiltInGeneric(allocator),
         };
     }
 
@@ -342,4 +345,34 @@ fn loadCustomBinary(allocator: Allocator, path: []const u8) !Model {
     _ = path;
     // TODO: Implement custom binary format loading
     return ModelError.UnsupportedVersion;
+}
+
+fn loadBuiltInGeneric(allocator: Allocator) !Model {
+    // Create a lightweight built-in model for basic text generation
+    var metadata = try ModelMetadata.init(allocator, "built-in-generic", "1.0");
+    metadata.format = .built_in_generic;
+    metadata.description = try allocator.dupe(u8, "Built-in lightweight text generation model");
+
+    var model = Model.init(allocator, metadata);
+
+    // Add basic input/output specifications
+    var input_spec = TensorSpec{
+        .name = try allocator.dupe(u8, "input_text"),
+        .shape = try allocator.dupe(i32, &[_]i32{ -1, -1 }), // Dynamic shape
+        .dtype = .f32, // Use f32 for now since string is not supported
+    };
+    try model.graph.inputs.append(input_spec);
+
+    var output_spec = TensorSpec{
+        .name = try allocator.dupe(u8, "output_text"),
+        .shape = try allocator.dupe(i32, &[_]i32{ -1, -1 }), // Dynamic shape
+        .dtype = .f32, // Use f32 for now since string is not supported
+    };
+    try model.graph.outputs.append(output_spec);
+
+    // Add a simple text generation node
+    var text_gen_node = try GraphNode.init(allocator, "text_generator", "TextGeneration");
+    try model.graph.addNode(text_gen_node);
+
+    return model;
 }

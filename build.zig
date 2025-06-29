@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     // Main library
     const lib = b.addStaticLibrary(.{
-        .name = "zig-ai-engine",
+        .name = "zig-ai-inference",
         .root_source_file = .{ .path = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
@@ -54,19 +54,19 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    // Phase 2 Integration Tests
+    // Integration Tests
     const integration_tests = b.addTest(.{
-        .root_source_file = .{ .path = "tests/integration/phase2_integration_test.zig" },
+        .root_source_file = .{ .path = "tests/integration_test.zig" },
         .target = target,
         .optimize = optimize,
     });
     integration_tests.linkLibrary(lib);
-    integration_tests.addModule("zig-ai-engine", b.createModule(.{
+    integration_tests.addModule("zig-ai-inference", b.createModule(.{
         .source_file = .{ .path = "src/lib.zig" },
     }));
 
     const run_integration_tests = b.addRunArtifact(integration_tests);
-    const integration_test_step = b.step("test-integration", "Run Phase 2 integration tests");
+    const integration_test_step = b.step("test-integration", "Run comprehensive integration tests");
     integration_test_step.dependOn(&run_integration_tests.step);
 
     // Benchmarks
@@ -78,36 +78,41 @@ pub fn build(b: *std.Build) void {
     });
 
     benchmarks.linkLibrary(lib);
-    const run_benchmarks = b.addRunArtifact(benchmarks);
-    const bench_step = b.step("bench", "Run benchmarks");
-    bench_step.dependOn(&run_benchmarks.step);
-
-    // Phase 2 Benchmarks
-    const phase2_benchmarks = b.addExecutable(.{
-        .name = "phase2_benchmarks",
-        .root_source_file = .{ .path = "benchmarks/phase2_benchmarks.zig" },
-        .target = target,
-        .optimize = .ReleaseFast,
-    });
-
-    phase2_benchmarks.linkLibrary(lib);
-    phase2_benchmarks.addModule("zig-ai-engine", b.createModule(.{
+    benchmarks.addModule("zig-ai-inference", b.createModule(.{
         .source_file = .{ .path = "src/lib.zig" },
     }));
-    const run_phase2_benchmarks = b.addRunArtifact(phase2_benchmarks);
-    const phase2_bench_step = b.step("bench-phase2", "Run Phase 2 performance benchmarks");
-    phase2_bench_step.dependOn(&run_phase2_benchmarks.step);
+    const run_benchmarks = b.addRunArtifact(benchmarks);
+    const bench_step = b.step("bench", "Run performance benchmarks");
+    bench_step.dependOn(&run_benchmarks.step);
+
+    // Main CLI
+    const main_cli = b.addExecutable(.{
+        .name = "zig-ai",
+        .root_source_file = .{ .path = "examples/zig_ai_cli.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    main_cli.linkLibrary(lib);
+    main_cli.addModule("zig-ai-inference", b.createModule(.{
+        .source_file = .{ .path = "src/lib.zig" },
+    }));
+    b.installArtifact(main_cli);
+
+    const main_cli_run = b.addRunArtifact(main_cli);
+    if (b.args) |args| {
+        main_cli_run.addArgs(args);
+    }
+    const main_cli_step = b.step("cli", "Run the main Zig AI CLI");
+    main_cli_step.dependOn(&main_cli_run.step);
 
     // Examples
     const examples = [_][]const u8{
         "simple_inference",
         "model_loading",
-        "custom_operator",
-        "phase1_demo",
         "computation_graph",
         "enhanced_operators",
-        "gpu_demo", // Phase 2: GPU Support Foundation
-        "phase2_complete_demo", // Phase 2: Complete System Demo
+        "gpu_demo",
+        "zig_ai_cli", // Main unified CLI
     };
 
     for (examples) |example| {
@@ -119,7 +124,7 @@ pub fn build(b: *std.Build) void {
         });
 
         example_exe.linkLibrary(lib);
-        example_exe.addModule("zig-ai-engine", b.createModule(.{
+        example_exe.addModule("zig-ai-inference", b.createModule(.{
             .source_file = .{ .path = "src/lib.zig" },
         }));
         b.installArtifact(example_exe);

@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("zig-ai-engine");
+const lib = @import("zig-ai-inference");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
