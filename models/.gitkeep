@@ -1,0 +1,22 @@
+# Models Directory
+
+This directory is for storing ONNX model files.
+
+## Usage
+
+Download models using the CLI:
+```bash
+zig build cli -- download --download-model tinyllama
+```
+
+Or place your own ONNX models here and reference them:
+```bash
+zig build cli -- interactive --model ./models/your-model.onnx
+```
+
+## Built-in Model
+
+The engine includes a built-in model that works without any downloads:
+```bash
+zig build cli -- interactive --model built-in
+```
