@@ -114,6 +114,10 @@ pub fn build(b: *std.Build) void {
         "gpu_demo",
         "scalar_demo", // 0D scalar tensor demo
         "zig_ai_cli", // Main unified CLI
+        "advanced_onnx_parser", // Phase 3.1: Advanced ONNX Parser
+        "expanded_onnx_operators", // Phase 3.2: Expanded Operator Support
+        "onnx_quantization_optimization", // Phase 3.3: Quantization & Optimization
+        "complete_onnx_operators", // Phase 4.1: Complete Operator Set
     };
 
     for (examples) |example| {
