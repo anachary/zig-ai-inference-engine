@@ -1,175 +1,80 @@
 const std = @import("std");
 
+/// Zig AI Ecosystem - Orchestrator Build File
+///
+/// This build file orchestrates the modular Zig AI ecosystem.
+/// Each project has its own build.zig for focused development.
+/// Use this for ecosystem-wide operations and quick access.
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    _ = b.standardTargetOptions(.{});
+    _ = b.standardOptimizeOption(.{});
 
-    // Main library
-    const lib = b.addStaticLibrary(.{
-        .name = "zig-ai-inference",
-        .root_source_file = .{ .path = "src/lib.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
+    // Print ecosystem information
+    const info_step = b.step("info", "Show Zig AI Ecosystem information");
+    const info_cmd = b.addSystemCommand(&[_][]const u8{ "echo", "🚀 Zig AI Ecosystem - Modular Architecture\n" ++
+        "==========================================\n" ++
+        "📦 Projects:\n" ++
+        "  • zig-tensor-core      - Tensor operations & memory\n" ++
+        "  • zig-onnx-parser      - ONNX model parsing\n" ++
+        "  • zig-inference-engine - Model execution\n" ++
+        "  • zig-model-server     - HTTP API & CLI\n" ++
+        "  • zig-ai-platform      - Unified orchestrator\n\n" ++
+        "🔧 Quick Commands:\n" ++
+        "  zig build info          - Show this information\n" ++
+        "  zig build build-all     - Build all projects\n" ++
+        "  zig build test-all      - Test all projects\n" ++
+        "  zig build clean-all     - Clean all projects\n\n" ++
+        "📁 Individual Projects:\n" ++
+        "  cd projects/[project-name] && zig build\n" });
+    info_step.dependOn(&info_cmd.step);
 
-    // TODO: Add SIMD support when C files are implemented
-    // if (target.getCpuArch() == .x86_64) {
-    //     lib.addCSourceFile(.{
-    //         .file = .{ .path = "src/core/simd_x86.c" },
-    //         .flags = &[_][]const u8{ "-mavx2", "-mfma" },
-    //     });
-    // }
+    // Build all projects
+    const build_all_step = b.step("build-all", "Build all ecosystem projects");
 
-    b.installArtifact(lib);
-
-    // Main executable
-    const exe = b.addExecutable(.{
-        .name = "ai-engine",
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    exe.linkLibrary(lib);
-    b.installArtifact(exe);
-
-    // Run command
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
-    // Unit tests
-    const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/test.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
-
-    // Integration Tests
-    const integration_tests = b.addTest(.{
-        .root_source_file = .{ .path = "tests/integration_test.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    integration_tests.linkLibrary(lib);
-    integration_tests.addModule("zig-ai-inference", b.createModule(.{
-        .source_file = .{ .path = "src/lib.zig" },
-    }));
-
-    const run_integration_tests = b.addRunArtifact(integration_tests);
-    const integration_test_step = b.step("test-integration", "Run comprehensive integration tests");
-    integration_test_step.dependOn(&run_integration_tests.step);
-
-    // Benchmarks
-    const benchmarks = b.addExecutable(.{
-        .name = "benchmarks",
-        .root_source_file = .{ .path = "benchmarks/main.zig" },
-        .target = target,
-        .optimize = .ReleaseFast,
-    });
-
-    benchmarks.linkLibrary(lib);
-    benchmarks.addModule("zig-ai-inference", b.createModule(.{
-        .source_file = .{ .path = "src/lib.zig" },
-    }));
-    const run_benchmarks = b.addRunArtifact(benchmarks);
-    const bench_step = b.step("bench", "Run performance benchmarks");
-    bench_step.dependOn(&run_benchmarks.step);
-
-    // Main CLI
-    const main_cli = b.addExecutable(.{
-        .name = "zig-ai",
-        .root_source_file = .{ .path = "examples/zig_ai_cli.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    main_cli.linkLibrary(lib);
-    main_cli.addModule("zig-ai-inference", b.createModule(.{
-        .source_file = .{ .path = "src/lib.zig" },
-    }));
-    b.installArtifact(main_cli);
-
-    const main_cli_run = b.addRunArtifact(main_cli);
-    if (b.args) |args| {
-        main_cli_run.addArgs(args);
-    }
-    const main_cli_step = b.step("cli", "Run the main Zig AI CLI");
-    main_cli_step.dependOn(&main_cli_run.step);
-
-    // Real LLM Test
-    const real_llm_test = b.addExecutable(.{
-        .name = "test-real-llm",
-        .root_source_file = .{ .path = "test_real_llm.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    real_llm_test.linkLibrary(lib);
-    real_llm_test.addModule("zig-ai-inference", b.createModule(.{
-        .source_file = .{ .path = "src/lib.zig" },
-    }));
-    const run_real_llm_test = b.addRunArtifact(real_llm_test);
-    const real_llm_test_step = b.step("test-real-llm", "Test real LLM model integration");
-    real_llm_test_step.dependOn(&run_real_llm_test.step);
-
-    // Real LLM Demo
-    const real_llm_demo = b.addExecutable(.{
-        .name = "real-llm-demo",
-        .root_source_file = .{ .path = "examples/real_llm_demo.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    real_llm_demo.linkLibrary(lib);
-    real_llm_demo.addModule("zig-ai-inference", b.createModule(.{
-        .source_file = .{ .path = "src/lib.zig" },
-    }));
-    const run_real_llm_demo = b.addRunArtifact(real_llm_demo);
-    if (b.args) |args| {
-        run_real_llm_demo.addArgs(args);
-    }
-    const real_llm_demo_step = b.step("real-llm-demo", "Run real LLM model demo");
-    real_llm_demo_step.dependOn(&run_real_llm_demo.step);
-
-    // Examples
-    const examples = [_][]const u8{
-        "simple_inference",
-        "model_loading",
-        "computation_graph",
-        "enhanced_operators",
-        "gpu_demo",
-        "scalar_demo", // 0D scalar tensor demo
-        "zig_ai_cli", // Main unified CLI
-        "real_llm_demo", // Real LLM model demo
-        "advanced_onnx_parser", // Phase 3.1: Advanced ONNX Parser
-        "expanded_onnx_operators", // Phase 3.2: Expanded Operator Support
-        "onnx_quantization_optimization", // Phase 3.3: Quantization & Optimization
-        "complete_onnx_operators", // Phase 4.1: Complete Operator Set
+    const projects = [_][]const u8{
+        "zig-tensor-core",
+        "zig-onnx-parser",
+        "zig-inference-engine",
+        "zig-model-server",
+        "zig-ai-platform",
     };
 
-    for (examples) |example| {
-        const example_exe = b.addExecutable(.{
-            .name = example,
-            .root_source_file = .{ .path = b.fmt("examples/{s}.zig", .{example}) },
-            .target = target,
-            .optimize = optimize,
-        });
-
-        example_exe.linkLibrary(lib);
-        example_exe.addModule("zig-ai-inference", b.createModule(.{
-            .source_file = .{ .path = "src/lib.zig" },
-        }));
-        b.installArtifact(example_exe);
-
-        const example_run = b.addRunArtifact(example_exe);
-        const example_step = b.step(b.fmt("run-{s}", .{example}), b.fmt("Run {s} example", .{example}));
-        example_step.dependOn(&example_run.step);
+    for (projects) |project| {
+        const build_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "build", "-p", b.fmt("projects/{s}", .{project}) });
+        build_cmd.cwd = b.fmt("projects/{s}", .{project});
+        build_all_step.dependOn(&build_cmd.step);
     }
+
+    // Test all projects
+    const test_all_step = b.step("test-all", "Test all ecosystem projects");
+
+    for (projects) |project| {
+        const test_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "build", "test", "-p", b.fmt("projects/{s}", .{project}) });
+        test_cmd.cwd = b.fmt("projects/{s}", .{project});
+        test_all_step.dependOn(&test_cmd.step);
+    }
+
+    // Clean all projects
+    const clean_all_step = b.step("clean-all", "Clean all ecosystem projects");
+
+    for (projects) |project| {
+        const clean_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "build", "clean", "-p", b.fmt("projects/{s}", .{project}) });
+        clean_cmd.cwd = b.fmt("projects/{s}", .{project});
+        clean_all_step.dependOn(&clean_cmd.step);
+    }
+
+    // Quick access to main CLI (from zig-model-server)
+    const cli_step = b.step("cli", "Run the main Zig AI CLI");
+    const cli_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "build", "run", "-p", "projects/zig-model-server" });
+    cli_cmd.cwd = "projects/zig-model-server";
+    cli_step.dependOn(&cli_cmd.step);
+
+    // Quick access to platform orchestrator
+    const platform_step = b.step("platform", "Run the Zig AI Platform");
+    const platform_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "build", "run", "-p", "projects/zig-ai-platform" });
+    platform_cmd.cwd = "projects/zig-ai-platform";
+    platform_step.dependOn(&platform_cmd.step);
+
+    // Default step shows info
+    b.default_step = info_step;
 }
