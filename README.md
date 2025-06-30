@@ -1,38 +1,55 @@
-# Zig AI Inference Engine
+# Zig AI Ecosystem
 
-🚀 **A modular, high-performance AI inference engine built in Zig following SOLID principles**
+🚀 **A modular, high-performance AI ecosystem built in Zig following SOLID principles**
 
 Perfect for **edge AI**, **IoT devices**, and **privacy-critical applications** where you need local AI inference without cloud dependencies.
 
-## 🏗️ Architecture Overview
+## 🏗️ Modular Architecture
 
-This project follows the **Single Responsibility Principle** with a modular architecture:
+This ecosystem follows **SOLID principles** with a completely modular architecture where each project has a single responsibility:
 
 ```
-Zig AI Inference Engine
-├── 🧮 Core Tensor System      # Single responsibility: Tensor operations & memory
-├── 📦 ONNX Parser            # Single responsibility: Model format parsing
-├── ⚙️  Inference Engine       # Single responsibility: Model execution
-├── 🌐 Model Server           # Single responsibility: HTTP API & CLI
-└── 🎯 Unified Interface      # Single responsibility: Orchestration
+Zig AI Ecosystem
+├── 🧮 zig-tensor-core        # Tensor operations & memory management
+├── 📦 zig-onnx-parser        # ONNX model parsing & validation
+├── ⚙️  zig-inference-engine   # Neural network execution & operators
+├── 🌐 zig-model-server       # HTTP API & CLI interfaces
+└── 🎯 zig-ai-platform        # Unified orchestrator & integration
 ```
 
-## 🎯 Key Features
+**🔥 Each project is independently usable and follows the Single Responsibility Principle!**
 
-### Core Capabilities
-- **🔥 Blazing Fast**: Hand-optimized tensor operations with SIMD acceleration
-- **💾 Memory Efficient**: Advanced memory management with arena allocators and tensor pooling
-- **🔢 Full Tensor Support**: 0D scalars to N-dimensional arrays with NumPy-compatible operations
-- **🔒 Privacy-First**: All processing done locally, no data sent to external servers
-- **⚡ Edge Optimized**: Minimal resource usage perfect for IoT and embedded devices
+## 🎯 Ecosystem Features
 
-### Advanced Features
-- **🧠 LLM Support**: Built-in support for Large Language Models with text generation
-- **🌐 HTTP API**: RESTful API server for web applications and microservices
-- **🎮 GPU Acceleration**: CUDA and Vulkan backend support for high-performance computing
-- **📦 ONNX Compatible**: Load and run ONNX models seamlessly
-- **🔧 Thread-Safe**: Proper synchronization for concurrent inference requests
-- **🛡️ Memory Safe**: Zig's compile-time memory safety guarantees
+### 🧮 Tensor Core (zig-tensor-core)
+- **🔥 SIMD Optimized**: Hand-tuned tensor operations with vectorization
+- **💾 Memory Efficient**: Arena allocators, tensor pooling, zero-copy operations
+- **🔢 Complete Support**: 0D scalars to N-dimensional tensors with NumPy compatibility
+- **⚡ High Performance**: Optimized for both desktop and embedded systems
+
+### 📦 ONNX Parser (zig-onnx-parser)
+- **📋 Full ONNX Support**: Complete ONNX specification implementation
+- **🔍 Model Analysis**: Extract metadata, validate models, analyze graphs
+- **🔄 Format Conversion**: Convert between ONNX variants and custom formats
+- **⚡ Fast Parsing**: Optimized protobuf parsing with minimal allocations
+
+### ⚙️ Inference Engine (zig-inference-engine)
+- **🧠 25+ Operators**: Complete set of neural network operators
+- **🔧 Multi-threaded**: Task scheduling and parallel execution
+- **🎮 GPU Ready**: CUDA, Vulkan, and OpenCL backend support
+- **📊 Optimized**: Memory-efficient execution planning and caching
+
+### 🌐 Model Server (zig-model-server)
+- **🌐 HTTP API**: RESTful server for web applications and microservices
+- **💻 CLI Interface**: Unified command-line tool for all operations
+- **🔧 Thread-Safe**: Concurrent request handling with proper synchronization
+- **📈 Scalable**: Production-ready server with monitoring and metrics
+
+### 🎯 AI Platform (zig-ai-platform)
+- **🎯 Unified Interface**: Single entry point for the entire ecosystem
+- **🔗 Smart Integration**: Automatic component discovery and configuration
+- **📦 Easy Deployment**: One-command setup for complex AI workflows
+- **🛡️ Memory Safe**: Zig's compile-time safety across all components
 
 ## 🚀 Quick Start
 
@@ -42,71 +59,82 @@ Zig AI Inference Engine
 
 ### 2. Installation
 ```bash
-# Clone the repository
+# Clone the ecosystem
 git clone https://github.com/anachary/zig-ai-inference-engine.git
 cd zig-ai-inference-engine
 
-# Build the project
-zig build
+# Build the entire ecosystem
+zig build build-all
 
 # Run tests to verify installation
-zig build test
+zig build test-all
+
+# Get ecosystem information
+zig build info
 ```
 
-### 3. Basic Usage
+### 3. Usage Options
 
-#### Option A: Library Integration (Recommended)
+#### Option A: Unified Platform (Recommended)
+```bash
+# Use the unified AI platform for complete workflows
+zig build platform
+
+# Or run specific platform commands
+cd projects/zig-ai-platform
+zig build run -- --help
+```
+
+#### Option B: Individual Components
+```bash
+# Use tensor operations only
+cd projects/zig-tensor-core
+zig build run -- tensor_demo
+
+# Parse ONNX models only
+cd projects/zig-onnx-parser
+zig build run -- parse model.onnx
+
+# Run inference only
+cd projects/zig-inference-engine
+zig build run -- inference_demo
+
+# Use CLI/HTTP server only
+cd projects/zig-model-server
+zig build run -- server --model model.onnx --port 8080
+```
+
+#### Option C: Library Integration
 ```zig
 const std = @import("std");
-const zig_ai = @import("zig-ai-inference");
+const tensor_core = @import("zig-tensor-core");
+const onnx_parser = @import("zig-onnx-parser");
+const inference_engine = @import("zig-inference-engine");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Initialize inference engine
-    var engine = try zig_ai.Engine.init(allocator, .{
-        .max_memory_mb = 512,
-        .num_threads = 2,
-    });
-    defer engine.deinit();
+    // Parse ONNX model
+    var parser = try onnx_parser.Parser.init(allocator);
+    defer parser.deinit();
+    const model = try parser.parseFile("model.onnx");
 
-    // Load ONNX model
-    try engine.loadModel("path/to/model.onnx");
+    // Create inference engine
+    var engine = try inference_engine.Engine.init(allocator);
+    defer engine.deinit();
+    try engine.loadModel(model);
 
     // Create input tensor
     const input_shape = [_]usize{1, 224, 224, 3};
-    var input = try zig_ai.Tensor.init(allocator, &input_shape, .f32);
+    var input = try tensor_core.Tensor.init(allocator, &input_shape, .f32);
     defer input.deinit();
 
     // Run inference
-    const output = try engine.infer(&[_]zig_ai.Tensor{input});
-    defer allocator.free(output);
+    const outputs = try engine.infer(&[_]tensor_core.Tensor{input});
+    defer allocator.free(outputs);
 }
-```
-
-#### Option B: CLI Tool
-```bash
-# Single inference
-zig build cli -- inference --model model.onnx --prompt "Hello, AI!"
-
-# Interactive mode
-zig build cli -- interactive --model model.onnx
-
-# HTTP server mode
-zig build cli -- server --model model.onnx --port 8080
-```
-
-#### Option C: HTTP API
-```bash
-# Start server
-zig build cli -- server --model model.onnx --port 8080
-
-# Make inference request
-curl -X POST http://localhost:8080/api/v1/inference \
-  -H "Content-Type: application/json" \
-  -d '{"input": "Hello, world!"}'
 ```
 
 ## 📋 System Requirements
@@ -298,8 +326,12 @@ pub fn main() !void {
 
 #### Basic Commands
 ```bash
-# Get help
+# Use unified CLI (recommended)
 zig build cli -- --help
+
+# Or use model server directly
+cd projects/zig-model-server
+zig build run -- --help
 
 # Single inference
 zig build cli -- inference --model model.onnx --prompt "Hello, AI!"
@@ -622,62 +654,84 @@ zig build cli -- update-models
 
 ## 🛠️ Development Guide
 
-### Project Structure (SOLID Principles)
+### Ecosystem Structure (SOLID Principles)
 ```
-zig-ai-inference-engine/
-├── src/
-│   ├── core/           # SRP: Tensor operations, SIMD, memory
-│   ├── formats/        # SRP: ONNX parser, model formats
-│   ├── engine/         # SRP: Inference engine, operators
-│   ├── network/        # SRP: HTTP server, API
-│   ├── memory/         # SRP: Memory management, pools
-│   ├── scheduler/      # SRP: Task scheduling
-│   ├── gpu/           # SRP: GPU acceleration
-│   ├── llm/           # SRP: LLM-specific features
-│   └── models/        # SRP: Model management
-├── examples/          # Usage examples
-├── tests/            # Test suites
-├── docs/             # Documentation
-├── models/           # Model files (Git submodule)
-└── build.zig         # Build configuration
+zig-ai-ecosystem/
+├── projects/
+│   ├── zig-tensor-core/        # SRP: Tensor operations & memory
+│   │   ├── src/               # Core tensor implementation
+│   │   ├── examples/          # Tensor usage examples
+│   │   └── tests/             # Tensor operation tests
+│   ├── zig-onnx-parser/       # SRP: Model format parsing
+│   │   ├── src/               # ONNX parsing implementation
+│   │   ├── examples/          # Model parsing examples
+│   │   └── tests/             # Parser validation tests
+│   ├── zig-inference-engine/  # SRP: Neural network execution
+│   │   ├── src/               # Inference engine implementation
+│   │   ├── examples/          # Inference examples
+│   │   └── tests/             # Engine execution tests
+│   ├── zig-model-server/      # SRP: HTTP API & CLI
+│   │   ├── src/               # Server implementation
+│   │   ├── examples/          # API usage examples
+│   │   └── tests/             # Server integration tests
+│   └── zig-ai-platform/       # SRP: Unified orchestration
+│       ├── src/               # Platform integration
+│       ├── examples/          # End-to-end examples
+│       └── tests/             # Platform integration tests
+├── common/                    # Shared interfaces & types
+│   ├── interfaces/            # Common interfaces (tensor, model, device)
+│   ├── types/                 # Shared type definitions
+│   └── utils/                 # Common utilities
+├── docs/                      # Ecosystem documentation
+├── models/                    # Model files (Git submodule)
+└── build.zig                  # Ecosystem orchestrator build
 ```
 
 ### Building from Source
 ```bash
-# Debug build (development)
-zig build
+# Build entire ecosystem
+zig build build-all
 
-# Release build (production)
-zig build -Doptimize=ReleaseFast
+# Build specific projects
+cd projects/zig-tensor-core && zig build
+cd projects/zig-onnx-parser && zig build
+cd projects/zig-inference-engine && zig build
+cd projects/zig-model-server && zig build
+cd projects/zig-ai-platform && zig build
 
-# Small binary (IoT/embedded)
-zig build -Doptimize=ReleaseSmall
+# Release builds for production
+zig build build-all -Doptimize=ReleaseFast
+
+# Small binaries for IoT/embedded
+zig build build-all -Doptimize=ReleaseSmall
 
 # Cross-compile for ARM
-zig build -Dtarget=aarch64-linux
+zig build build-all -Dtarget=aarch64-linux
 
 # Cross-compile for Windows
-zig build -Dtarget=x86_64-windows
+zig build build-all -Dtarget=x86_64-windows
 ```
 
 ### Running Tests
 ```bash
-# All tests
-zig build test
+# Test entire ecosystem
+zig build test-all
 
-# Specific modules
-zig build test -- --filter "tensor"
-zig build test -- --filter "onnx"
-zig build test -- --filter "inference"
+# Test specific projects
+cd projects/zig-tensor-core && zig build test
+cd projects/zig-onnx-parser && zig build test
+cd projects/zig-inference-engine && zig build test
+cd projects/zig-model-server && zig build test
+cd projects/zig-ai-platform && zig build test
 
-# Integration tests
+# Integration tests across projects
 zig build test-integration
 
 # Performance benchmarks
 zig build benchmark
 
 # Memory leak detection
-zig build test -Dtest-leak-detection
+zig build test-all -Dtest-leak-detection
 ```
 
 ### Configuration Options
@@ -927,17 +981,18 @@ Zig AI Inference Engine
 ## 📚 Additional Resources
 
 ### Documentation
-- 📖 **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
-- 🏗️ **[Architecture Guide](docs/ARCHITECTURE.md)** - Detailed architecture
-- 🔧 **[Memory Guide](docs/MEMORY_ALLOCATION_GUIDE.md)** - Memory management
-- 🎮 **[GPU Guide](docs/GPU_ARCHITECTURE.md)** - GPU acceleration
-- 📦 **[Submodule Setup](docs/SUBMODULE_SETUP.md)** - Model management
+- 📖 **[API Reference](docs/API_REFERENCE.md)** - Complete ecosystem API documentation
+- 🏗️ **[Architecture Guide](docs/ARCHITECTURE.md)** - Detailed modular architecture
+- 🔧 **[Memory Guide](docs/MEMORY_ALLOCATION_GUIDE.md)** - Memory management across components
+- 🎮 **[GPU Guide](docs/GPU_ARCHITECTURE.md)** - GPU acceleration framework
+- 🔗 **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - How components work together
 
 ### Examples
-- 🚀 **Simple Inference**: `examples/simple_inference.zig`
-- 🌐 **HTTP Server**: `examples/model_loading.zig`
-- 🎮 **GPU Demo**: `examples/gpu_demo.zig`
-- 📊 **Computation Graph**: `examples/computation_graph.zig`
+- 🧮 **Tensor Operations**: `projects/zig-tensor-core/examples/`
+- 📦 **ONNX Parsing**: `projects/zig-onnx-parser/examples/`
+- ⚙️ **Inference Engine**: `projects/zig-inference-engine/examples/`
+- 🌐 **HTTP Server**: `projects/zig-model-server/examples/`
+- 🎯 **Complete Workflows**: `projects/zig-ai-platform/examples/`
 
 ### Community
 - 🐛 **Issues**: [GitHub Issues](https://github.com/anachary/zig-ai-inference-engine/issues)

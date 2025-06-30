@@ -28,14 +28,18 @@ This project has **one clear purpose**: Provide unified orchestration, configura
 ### Complete Platform Setup
 ```bash
 # Clone the ecosystem
-git clone https://github.com/zig-ai/zig-ai-ecosystem.git
-cd zig-ai-ecosystem
+git clone https://github.com/anachary/zig-ai-inference-engine.git
+cd zig-ai-inference-engine
 
 # Initialize the platform
-zig run projects/zig-ai-platform/src/main.zig -- init
+zig build platform
+
+# Or run platform directly
+cd projects/zig-ai-platform
+zig build run -- init
 
 # Deploy for your environment
-zig run projects/zig-ai-platform/src/main.zig -- deploy --env production
+zig build run -- deploy --env production
 ```
 
 ### Platform Usage
