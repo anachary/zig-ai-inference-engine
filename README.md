@@ -8,6 +8,7 @@ Perfect for **edge AI**, **IoT devices**, and **privacy-critical applications** 
 
 - **🔥 Blazing Fast**: Hand-optimized tensor operations with SIMD acceleration
 - **💾 Memory Efficient**: Advanced memory management with arena allocators and tensor pooling
+- **🔢 Full Tensor Support**: 0D scalars to N-dimensional arrays with NumPy-compatible operations
 - **🔒 Privacy-First**: All processing done locally, no data sent to external servers
 - **⚡ Edge Optimized**: Minimal resource usage perfect for IoT and embedded devices
 - **🧠 LLM Support**: Built-in support for Large Language Models with text generation

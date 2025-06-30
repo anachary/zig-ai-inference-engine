@@ -51,9 +51,24 @@ pub const Tensor = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, shape: []const usize, dtype: DataType) !Self {
-        if (shape.len == 0) return TensorError.InvalidShape;
+        // Handle 0D scalar case
+        if (shape.len == 0) {
+            // 0D scalar: single element, no strides needed
+            const data = try allocator.alloc(u8, dtype.size());
+            const shape_copy = try allocator.alloc(usize, 0); // Empty shape array
+            const strides = try allocator.alloc(usize, 0); // Empty strides array
 
-        // Calculate total elements
+            return Self{
+                .data = data,
+                .shape = shape_copy,
+                .strides = strides,
+                .dtype = dtype,
+                .device = .cpu,
+                .allocator = allocator,
+            };
+        }
+
+        // Calculate total elements for N-D tensors
         var total_elements: usize = 1;
         for (shape) |dim| {
             if (dim == 0) return TensorError.InvalidShape;
@@ -93,7 +108,44 @@ pub const Tensor = struct {
         self.allocator.free(self.strides);
     }
 
+    /// Create a 0D scalar tensor with the given value
+    pub fn scalar(allocator: Allocator, value: anytype, dtype: DataType) !Self {
+        var tensor = try Self.init(allocator, &[_]usize{}, dtype);
+
+        switch (dtype) {
+            .f32 => {
+                const f32_value: f32 = switch (@TypeOf(value)) {
+                    f32 => value,
+                    f64 => @floatCast(value),
+                    comptime_float => @floatCast(value),
+                    i32, i16, i8, u8 => @floatFromInt(value),
+                    comptime_int => @floatFromInt(value),
+                    else => @compileError("Unsupported type for f32 scalar"),
+                };
+                try tensor.set_scalar_f32(f32_value);
+            },
+            .i32 => {
+                const i32_value: i32 = switch (@TypeOf(value)) {
+                    i32 => value,
+                    i16, i8 => @intCast(value),
+                    u8 => @intCast(value),
+                    comptime_int => @intCast(value),
+                    f32, f64, comptime_float => @intFromFloat(value),
+                    else => @compileError("Unsupported type for i32 scalar"),
+                };
+                const data_ptr = @as([*]i32, @ptrCast(@alignCast(tensor.data.ptr)));
+                data_ptr[0] = i32_value;
+            },
+            else => return TensorError.UnsupportedDataType,
+        }
+
+        return tensor;
+    }
+
     pub fn numel(self: *const Self) usize {
+        // 0D scalar has 1 element
+        if (self.shape.len == 0) return 1;
+
         var total: usize = 1;
         for (self.shape) |dim| {
             total *= dim;
@@ -137,7 +189,34 @@ pub const Tensor = struct {
         data_ptr[index] = value;
     }
 
+    /// Get scalar value from 0D tensor
+    pub fn get_scalar_f32(self: *const Self) !f32 {
+        if (self.dtype != .f32) return TensorError.UnsupportedDataType;
+        if (self.shape.len != 0) return TensorError.InvalidShape;
+        const data_ptr = @as([*]const f32, @ptrCast(@alignCast(self.data.ptr)));
+        return data_ptr[0];
+    }
+
+    /// Set scalar value for 0D tensor
+    pub fn set_scalar_f32(self: *Self, value: f32) !void {
+        if (self.dtype != .f32) return TensorError.UnsupportedDataType;
+        if (self.shape.len != 0) return TensorError.InvalidShape;
+        const data_ptr = @as([*]f32, @ptrCast(@alignCast(self.data.ptr)));
+        data_ptr[0] = value;
+    }
+
+    /// Check if tensor is a scalar (0D)
+    pub fn is_scalar(self: *const Self) bool {
+        return self.shape.len == 0;
+    }
+
     fn compute_offset(self: *const Self, indices: []const usize) !usize {
+        // 0D scalar case: only allow empty indices
+        if (self.shape.len == 0) {
+            if (indices.len != 0) return TensorError.IndexOutOfBounds;
+            return 0; // Scalar always at offset 0
+        }
+
         if (indices.len != self.shape.len) return TensorError.IndexOutOfBounds;
 
         var offset: usize = 0;
@@ -282,4 +361,62 @@ test "tensor utility functions" {
 
     try testing.expect(try ones_tensor.get_f32(&[_]usize{ 0, 0 }) == 1.0);
     try testing.expect(try ones_tensor.get_f32(&[_]usize{ 1, 1 }) == 1.0);
+}
+
+test "0D scalar tensor support" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Test 0D scalar creation
+    var scalar_tensor = try Tensor.init(allocator, &[_]usize{}, .f32);
+    defer scalar_tensor.deinit();
+
+    // Test scalar properties
+    try testing.expect(scalar_tensor.numel() == 1);
+    try testing.expect(scalar_tensor.ndim() == 0);
+    try testing.expect(scalar_tensor.size_bytes() == 4);
+    try testing.expect(scalar_tensor.is_scalar());
+
+    // Test scalar value access
+    try scalar_tensor.set_scalar_f32(42.5);
+    try testing.expect(try scalar_tensor.get_scalar_f32() == 42.5);
+
+    // Test scalar access with empty indices (should work)
+    try scalar_tensor.set_f32(&[_]usize{}, 3.14);
+    try testing.expect(try scalar_tensor.get_f32(&[_]usize{}) == 3.14);
+
+    // Test flat access for scalar
+    try scalar_tensor.set_f32_flat(0, 1.5);
+    try testing.expect(try scalar_tensor.get_f32_flat(0) == 1.5);
+
+    // Test error cases
+    try testing.expectError(TensorError.IndexOutOfBounds, scalar_tensor.get_f32(&[_]usize{0}));
+    try testing.expectError(TensorError.IndexOutOfBounds, scalar_tensor.set_f32(&[_]usize{0}, 1.0));
+    try testing.expectError(TensorError.IndexOutOfBounds, scalar_tensor.get_f32_flat(1));
+}
+
+test "scalar tensor creation convenience function" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Test f32 scalar creation
+    var f32_scalar = try Tensor.scalar(allocator, 3.14, .f32);
+    defer f32_scalar.deinit();
+
+    try testing.expect(f32_scalar.is_scalar());
+    try testing.expect(try f32_scalar.get_scalar_f32() == 3.14);
+
+    // Test i32 scalar creation
+    var i32_scalar = try Tensor.scalar(allocator, 42, .i32);
+    defer i32_scalar.deinit();
+
+    try testing.expect(i32_scalar.is_scalar());
+    const data_ptr = @as([*]const i32, @ptrCast(@alignCast(i32_scalar.data.ptr)));
+    try testing.expect(data_ptr[0] == 42);
+
+    // Test type conversion
+    var converted_scalar = try Tensor.scalar(allocator, 5, .f32); // int to f32
+    defer converted_scalar.deinit();
+
+    try testing.expect(try converted_scalar.get_scalar_f32() == 5.0);
 }

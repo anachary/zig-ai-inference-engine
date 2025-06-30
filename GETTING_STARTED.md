@@ -25,6 +25,9 @@ zig build test
 # 🚀 Run the working inference example (recommended!)
 zig build run-simple_inference
 
+# 🔢 NEW: Run 0D scalar tensor demo
+zig build run-scalar_demo
+
 # Run other examples (in development)
 zig build run-model_loading       # 🚧 In development
 zig build run-custom_operator     # 🚧 In development
@@ -91,6 +94,12 @@ defer engine.return_tensor(tensor);
 // Set and get values with type safety
 try tensor.set_f32(&[_]usize{0, 0}, 1.5);
 const value = try tensor.get_f32(&[_]usize{0, 0});
+
+// 0D Scalar tensors (NEW!)
+var scalar = try lib.tensor.Tensor.scalar(allocator, 3.14, .f32);
+defer scalar.deinit();
+try scalar.set_scalar_f32(42.0);
+const scalar_value = try scalar.get_scalar_f32();
 
 // Utility functions
 var zeros = try lib.tensor.zeros(allocator, &[_]usize{3, 3}, .f32);

@@ -112,6 +112,7 @@ pub fn build(b: *std.Build) void {
         "computation_graph",
         "enhanced_operators",
         "gpu_demo",
+        "scalar_demo", // 0D scalar tensor demo
         "zig_ai_cli", // Main unified CLI
     };
 
