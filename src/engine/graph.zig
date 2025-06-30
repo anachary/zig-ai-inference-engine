@@ -251,24 +251,21 @@ pub const GraphExecutor = struct {
             }
         }
 
-        // Create output tensors (for now, use same shape as first input)
+        // Prepare output tensors
         var output_tensors = std.ArrayList(tensor.Tensor).init(self.allocator);
         defer output_tensors.deinit();
 
         for (node.outputs) |output_name| {
-            // For now, create output tensor with same shape as first input
-            if (input_tensors.items.len > 0) {
-                const input_shape = input_tensors.items[0].shape;
-                var output_tensor = try tensor.Tensor.init(self.allocator, input_shape, .f32);
-                try output_tensors.append(output_tensor);
+            // Create output tensor based on node operation and input shapes
+            const output_tensor = try self.createOutputTensor(node, input_tensors.items);
+            try output_tensors.append(output_tensor);
 
-                // Register output tensor
-                const name_copy = try self.allocator.dupe(u8, output_name);
-                try self.tensor_registry.put(name_copy, output_tensor);
-            }
+            // Register output tensor for future nodes
+            const name_copy = try self.allocator.dupe(u8, output_name);
+            try self.tensor_registry.put(name_copy, output_tensor);
         }
 
-        // Execute the node
+        // Execute the node using the appropriate operator
         if (self.operator_registry.get(node.op_type)) |op| {
             // Use built-in operator
             try op.forward(input_tensors.items, output_tensors.items, self.allocator);
@@ -276,6 +273,44 @@ pub const GraphExecutor = struct {
             // Try ONNX node executor
             try self.onnx_executor.execute(node, input_tensors.items, output_tensors.items);
         }
+    }
+
+    fn createOutputTensor(self: *GraphExecutor, node: *const formats.GraphNode, inputs: []tensor.Tensor) !tensor.Tensor {
+        // Determine output shape based on operation type
+        if (std.mem.eql(u8, node.op_type, "MatMul")) {
+            // For MatMul: [M, K] x [K, N] -> [M, N]
+            if (inputs.len >= 2) {
+                const a_shape = inputs[0].shape;
+                const b_shape = inputs[1].shape;
+                const output_shape = &[_]usize{ a_shape[0], b_shape[1] };
+                return tensor.Tensor.init(self.allocator, output_shape, .f32);
+            }
+        } else if (std.mem.eql(u8, node.op_type, "Add") or
+            std.mem.eql(u8, node.op_type, "Mul") or
+            std.mem.eql(u8, node.op_type, "Sub"))
+        {
+            // For element-wise operations, output shape matches input
+            if (inputs.len >= 1) {
+                return tensor.Tensor.init(self.allocator, inputs[0].shape, .f32);
+            }
+        } else if (std.mem.eql(u8, node.op_type, "Softmax") or
+            std.mem.eql(u8, node.op_type, "Relu") or
+            std.mem.eql(u8, node.op_type, "LayerNormalization"))
+        {
+            // For activation functions, output shape matches input
+            if (inputs.len >= 1) {
+                return tensor.Tensor.init(self.allocator, inputs[0].shape, .f32);
+            }
+        }
+
+        // Default: use first input shape
+        if (inputs.len > 0) {
+            return tensor.Tensor.init(self.allocator, inputs[0].shape, .f32);
+        }
+
+        // Fallback: create a 1D tensor
+        const default_shape = &[_]usize{1};
+        return tensor.Tensor.init(self.allocator, default_shape, .f32);
     }
 
     fn collectOutputs(self: *GraphExecutor, graph: *const formats.ComputationGraph) ![]tensor.Tensor {

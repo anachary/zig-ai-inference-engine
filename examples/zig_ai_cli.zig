@@ -279,7 +279,14 @@ var global_knowledge_base: ?KnowledgeBase = null;
 fn initializeTextGeneration(allocator: std.mem.Allocator) !void {
     if (global_text_generator == null) {
         global_text_generator = TextGenerator.init(allocator);
-        try global_text_generator.?.loadModel("built-in");
+
+        // Try to load a real LLM model first
+        const model_to_load = "distilgpt2"; // Start with a smaller model
+
+        global_text_generator.?.loadModel(model_to_load) catch |err| {
+            safe_writer.info("⚠️ Could not load LLM model '{}': {}, falling back to built-in", .{ model_to_load, err });
+            try global_text_generator.?.loadModel("built-in");
+        };
 
         global_knowledge_base = KnowledgeBase.init(allocator);
         try global_knowledge_base.?.loadKnowledge();

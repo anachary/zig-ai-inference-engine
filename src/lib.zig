@@ -31,6 +31,7 @@ pub const llm = struct {
 pub const models = struct {
     pub const ModelManager = @import("models/tiny_models.zig").ModelManager;
     pub const TinyModelInfo = @import("models/tiny_models.zig").TinyModelInfo;
+    pub const ModelDownloader = @import("models/model_downloader.zig").ModelDownloader;
 };
 
 // Re-export main types

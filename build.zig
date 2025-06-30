@@ -105,6 +105,39 @@ pub fn build(b: *std.Build) void {
     const main_cli_step = b.step("cli", "Run the main Zig AI CLI");
     main_cli_step.dependOn(&main_cli_run.step);
 
+    // Real LLM Test
+    const real_llm_test = b.addExecutable(.{
+        .name = "test-real-llm",
+        .root_source_file = .{ .path = "test_real_llm.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    real_llm_test.linkLibrary(lib);
+    real_llm_test.addModule("zig-ai-inference", b.createModule(.{
+        .source_file = .{ .path = "src/lib.zig" },
+    }));
+    const run_real_llm_test = b.addRunArtifact(real_llm_test);
+    const real_llm_test_step = b.step("test-real-llm", "Test real LLM model integration");
+    real_llm_test_step.dependOn(&run_real_llm_test.step);
+
+    // Real LLM Demo
+    const real_llm_demo = b.addExecutable(.{
+        .name = "real-llm-demo",
+        .root_source_file = .{ .path = "examples/real_llm_demo.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    real_llm_demo.linkLibrary(lib);
+    real_llm_demo.addModule("zig-ai-inference", b.createModule(.{
+        .source_file = .{ .path = "src/lib.zig" },
+    }));
+    const run_real_llm_demo = b.addRunArtifact(real_llm_demo);
+    if (b.args) |args| {
+        run_real_llm_demo.addArgs(args);
+    }
+    const real_llm_demo_step = b.step("real-llm-demo", "Run real LLM model demo");
+    real_llm_demo_step.dependOn(&run_real_llm_demo.step);
+
     // Examples
     const examples = [_][]const u8{
         "simple_inference",
@@ -114,6 +147,7 @@ pub fn build(b: *std.Build) void {
         "gpu_demo",
         "scalar_demo", // 0D scalar tensor demo
         "zig_ai_cli", // Main unified CLI
+        "real_llm_demo", // Real LLM model demo
         "advanced_onnx_parser", // Phase 3.1: Advanced ONNX Parser
         "expanded_onnx_operators", // Phase 3.2: Expanded Operator Support
         "onnx_quantization_optimization", // Phase 3.3: Quantization & Optimization

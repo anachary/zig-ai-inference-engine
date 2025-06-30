@@ -334,10 +334,17 @@ pub const Model = struct {
 
 // Placeholder implementations for different model formats
 fn loadONNX(allocator: Allocator, path: []const u8) !Model {
-    _ = allocator;
-    _ = path;
-    // TODO: Implement ONNX loading
-    return ModelError.UnsupportedVersion;
+    // Use the advanced ONNX parser from Phase 3.1
+    const onnx = @import("onnx/parser.zig");
+
+    var parser = onnx.ONNXParser.init(allocator);
+    const onnx_model = parser.parseFile(path) catch |err| {
+        std.log.err("Failed to parse ONNX file {s}: {}", .{ path, err });
+        return ModelError.InvalidFormat;
+    };
+
+    std.log.info("Successfully loaded ONNX model: {s}", .{path});
+    return onnx_model;
 }
 
 fn loadCustomBinary(allocator: Allocator, path: []const u8) !Model {
@@ -348,31 +355,40 @@ fn loadCustomBinary(allocator: Allocator, path: []const u8) !Model {
 }
 
 fn loadBuiltInGeneric(allocator: Allocator) !Model {
-    // Create a lightweight built-in model for basic text generation
-    var metadata = try ModelMetadata.init(allocator, "built-in-generic", "1.0");
+    // Create a simple built-in model that uses actual inference patterns
+    var metadata = try ModelMetadata.init(allocator, "built-in-simple", "1.0");
     metadata.format = .built_in_generic;
-    metadata.description = try allocator.dupe(u8, "Built-in lightweight text generation model");
+    metadata.description = try allocator.dupe(u8, "Simple built-in model with basic inference capabilities");
 
     var model = Model.init(allocator, metadata);
 
+    // Create a simple computation graph for text processing
+    try createSimpleTextGraph(&model);
+
+    std.log.info("Built-in simple model loaded successfully", .{});
+    return model;
+}
+
+fn createSimpleTextGraph(model: *Model) !void {
+    // Create a minimal computation graph for text processing
+    // This is a simplified version that can be extended later
+
     // Add basic input/output specifications
     var input_spec = TensorSpec{
-        .name = try allocator.dupe(u8, "input_text"),
-        .shape = try allocator.dupe(i32, &[_]i32{ -1, -1 }), // Dynamic shape
-        .dtype = .f32, // Use f32 for now since string is not supported
+        .name = try model.allocator.dupe(u8, "input_text"),
+        .shape = try model.allocator.dupe(i32, &[_]i32{ -1, -1 }), // Dynamic shape
+        .dtype = .f32,
     };
     try model.graph.inputs.append(input_spec);
 
     var output_spec = TensorSpec{
-        .name = try allocator.dupe(u8, "output_text"),
-        .shape = try allocator.dupe(i32, &[_]i32{ -1, -1 }), // Dynamic shape
-        .dtype = .f32, // Use f32 for now since string is not supported
+        .name = try model.allocator.dupe(u8, "output_text"),
+        .shape = try model.allocator.dupe(i32, &[_]i32{ -1, -1 }), // Dynamic shape
+        .dtype = .f32,
     };
     try model.graph.outputs.append(output_spec);
 
     // Add a simple text generation node
-    var text_gen_node = try GraphNode.init(allocator, "text_generator", "TextGeneration");
+    var text_gen_node = try GraphNode.init(model.allocator, "text_generator", "TextGeneration");
     try model.graph.addNode(text_gen_node);
-
-    return model;
 }

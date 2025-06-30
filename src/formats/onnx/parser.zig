@@ -168,6 +168,11 @@ pub const ONNXNodeProto = struct {
 pub const ONNXValueInfoProto = struct {
     name: []const u8,
     type: ?ONNXTypeProto,
+
+    pub fn deinit(self: *ONNXValueInfoProto, allocator: Allocator) void {
+        allocator.free(self.name);
+        // Note: type is optional and doesn't need cleanup for now
+    }
 };
 
 pub const ONNXTypeProto = struct {
@@ -190,60 +195,66 @@ pub const ONNXDimension = struct {
 
 pub const ONNXGraphProto = struct {
     name: []const u8,
-    nodes: []ONNXNodeProto,
-    initializers: []ONNXTensorProto,
-    inputs: []ONNXValueInfoProto,
-    outputs: []ONNXValueInfoProto,
+    nodes: std.ArrayList(ONNXNodeProto),
+    initializers: std.ArrayList(ONNXTensorProto),
+    inputs: std.ArrayList(ONNXValueInfoProto),
+    outputs: std.ArrayList(ONNXValueInfoProto),
     allocator: Allocator,
 
     pub fn init(allocator: Allocator, name: []const u8) !ONNXGraphProto {
         return ONNXGraphProto{
             .name = try allocator.dupe(u8, name),
-            .nodes = &[_]ONNXNodeProto{},
-            .initializers = &[_]ONNXTensorProto{},
-            .inputs = &[_]ONNXValueInfoProto{},
-            .outputs = &[_]ONNXValueInfoProto{},
+            .nodes = std.ArrayList(ONNXNodeProto).init(allocator),
+            .initializers = std.ArrayList(ONNXTensorProto).init(allocator),
+            .inputs = std.ArrayList(ONNXValueInfoProto).init(allocator),
+            .outputs = std.ArrayList(ONNXValueInfoProto).init(allocator),
             .allocator = allocator,
         };
     }
 
     pub fn addNode(self: *ONNXGraphProto, node: ONNXNodeProto) !void {
         std.log.info("Adding node: {s} ({s})", .{ node.name, node.op_type });
-        _ = self;
+        try self.nodes.append(node);
     }
 
     pub fn addInput(self: *ONNXGraphProto, input: ONNXValueInfoProto) !void {
         std.log.info("Adding input: {s}", .{input.name});
-        _ = self;
+        try self.inputs.append(input);
     }
 
     pub fn addOutput(self: *ONNXGraphProto, output: ONNXValueInfoProto) !void {
         std.log.info("Adding output: {s}", .{output.name});
-        _ = self;
+        try self.outputs.append(output);
     }
 
     pub fn addInitializer(self: *ONNXGraphProto, initializer: ONNXTensorProto) !void {
         std.log.info("Adding initializer: {s} (type: {})", .{ initializer.name, initializer.data_type });
-        _ = self;
+        try self.initializers.append(initializer);
     }
 
     pub fn deinit(self: *ONNXGraphProto, allocator: Allocator) void {
         allocator.free(self.name);
 
-        for (self.nodes) |*node| {
+        for (self.nodes.items) |*node| {
             node.deinit(allocator);
         }
-        allocator.free(self.nodes);
+        self.nodes.deinit();
 
-        for (self.initializers) |*initializer| {
+        for (self.initializers.items) |*initializer| {
             initializer.deinit(allocator);
         }
-        allocator.free(self.initializers);
+        self.initializers.deinit();
 
-        // Note: ONNXValueInfoProto doesn't have deinit method yet
-        // This would need to be implemented when we add proper memory management
-        allocator.free(self.inputs);
-        allocator.free(self.outputs);
+        // Clean up inputs and outputs
+        for (self.inputs.items) |*input| {
+            input.deinit(allocator);
+        }
+        self.inputs.deinit();
+
+        for (self.outputs.items) |*output| {
+            output.deinit(allocator);
+        }
+        self.outputs.deinit();
     }
 };
 
@@ -314,7 +325,8 @@ pub const ONNXParser = struct {
         var pb_parser = protobuf.ProtobufParser.init(self.allocator, data);
 
         // Parse ONNX ModelProto
-        const onnx_model = try self.parseModelProto(&pb_parser);
+        var onnx_model = try self.parseModelProto(&pb_parser);
+        defer onnx_model.deinit(self.allocator);
 
         // Convert to internal model format
         const parsed_model = try self.convertToInternalModel(onnx_model);
@@ -357,6 +369,8 @@ pub const ONNXParser = struct {
                 2 => { // producer_name
                     if (header.wire_type == .length_delimited) {
                         const name = try parser.readString();
+                        // Free the old producer_name before overwriting
+                        self.allocator.free(onnx_model.producer_name);
                         onnx_model.producer_name = try self.allocator.dupe(u8, name);
                         std.log.info("Producer: {s}", .{onnx_model.producer_name});
                     } else {
@@ -366,6 +380,8 @@ pub const ONNXParser = struct {
                 3 => { // producer_version
                     if (header.wire_type == .length_delimited) {
                         const version = try parser.readString();
+                        // Free the old producer_version before overwriting
+                        self.allocator.free(onnx_model.producer_version);
                         onnx_model.producer_version = try self.allocator.dupe(u8, version);
                         std.log.info("Version: {s}", .{onnx_model.producer_version});
                     } else {
@@ -374,8 +390,10 @@ pub const ONNXParser = struct {
                 },
                 7 => { // graph
                     if (header.wire_type == .length_delimited) {
+                        // Clean up the initial graph before overwriting
+                        onnx_model.graph.deinit(self.allocator);
                         onnx_model.graph = try self.parseGraphProto(parser);
-                        std.log.info("✅ Graph parsed with {} nodes", .{onnx_model.graph.nodes.len});
+                        std.log.info("✅ Graph parsed with {} nodes", .{onnx_model.graph.nodes.items.len});
                     } else {
                         try parser.skipField(header.wire_type);
                     }
@@ -430,7 +448,14 @@ pub const ONNXParser = struct {
         const data = try parser.readBytes();
         var sub_parser = protobuf.ProtobufParser.init(self.allocator, data);
 
-        var graph = try ONNXGraphProto.init(self.allocator, "main_graph");
+        var graph = ONNXGraphProto{
+            .name = try self.allocator.dupe(u8, ""), // Start with empty name
+            .nodes = std.ArrayList(ONNXNodeProto).init(self.allocator),
+            .initializers = std.ArrayList(ONNXTensorProto).init(self.allocator),
+            .inputs = std.ArrayList(ONNXValueInfoProto).init(self.allocator),
+            .outputs = std.ArrayList(ONNXValueInfoProto).init(self.allocator),
+            .allocator = self.allocator,
+        };
 
         while (sub_parser.hasMoreData()) {
             const header = sub_parser.readFieldHeader() catch break;
@@ -447,6 +472,8 @@ pub const ONNXParser = struct {
                 2 => { // name
                     if (header.wire_type == .length_delimited) {
                         const name = try sub_parser.readString();
+                        // Free the old name before overwriting
+                        self.allocator.free(graph.name);
                         graph.name = try self.allocator.dupe(u8, name);
                     } else {
                         try sub_parser.skipField(header.wire_type);
@@ -482,7 +509,7 @@ pub const ONNXParser = struct {
             }
         }
 
-        std.log.info("📊 Graph: {} nodes, {} inputs, {} outputs, {} initializers", .{ graph.nodes.len, graph.inputs.len, graph.outputs.len, graph.initializers.len });
+        std.log.info("📊 Graph: {} nodes, {} inputs, {} outputs, {} initializers", .{ graph.nodes.items.len, graph.inputs.items.len, graph.outputs.items.len, graph.initializers.items.len });
 
         return graph;
     }
@@ -493,6 +520,12 @@ pub const ONNXParser = struct {
 
         var node = try ONNXNodeProto.init(self.allocator, "", "");
 
+        // Use ArrayLists to collect inputs and outputs
+        var inputs = std.ArrayList([]const u8).init(self.allocator);
+        defer inputs.deinit();
+        var outputs = std.ArrayList([]const u8).init(self.allocator);
+        defer outputs.deinit();
+
         while (sub_parser.hasMoreData()) {
             const header = sub_parser.readFieldHeader() catch break;
 
@@ -500,10 +533,8 @@ pub const ONNXParser = struct {
                 1 => { // input
                     if (header.wire_type == .length_delimited) {
                         const input = try sub_parser.readString();
-                        // Add to inputs array (simplified)
-                        const inputs = try self.allocator.alloc([]const u8, 1);
-                        inputs[0] = try self.allocator.dupe(u8, input);
-                        node.input = inputs;
+                        const input_copy = try self.allocator.dupe(u8, input);
+                        try inputs.append(input_copy);
                     } else {
                         try sub_parser.skipField(header.wire_type);
                     }
@@ -511,10 +542,8 @@ pub const ONNXParser = struct {
                 2 => { // output
                     if (header.wire_type == .length_delimited) {
                         const output = try sub_parser.readString();
-                        // Add to outputs array (simplified)
-                        const outputs = try self.allocator.alloc([]const u8, 1);
-                        outputs[0] = try self.allocator.dupe(u8, output);
-                        node.output = outputs;
+                        const output_copy = try self.allocator.dupe(u8, output);
+                        try outputs.append(output_copy);
                     } else {
                         try sub_parser.skipField(header.wire_type);
                     }
@@ -540,6 +569,10 @@ pub const ONNXParser = struct {
                 },
             }
         }
+
+        // Convert ArrayLists to slices
+        node.input = try inputs.toOwnedSlice();
+        node.output = try outputs.toOwnedSlice();
 
         return node;
     }
@@ -646,13 +679,13 @@ pub const ONNXParser = struct {
         var internal_model = model.Model.init(self.allocator, metadata);
 
         // Convert nodes
-        for (onnx_model.graph.nodes) |onnx_node| {
+        for (onnx_model.graph.nodes.items) |onnx_node| {
             const internal_node = try onnx_node.toGraphNode(self.allocator);
             try internal_model.graph.addNode(internal_node);
         }
 
         // Convert inputs
-        for (onnx_model.graph.inputs) |onnx_input| {
+        for (onnx_model.graph.inputs.items) |onnx_input| {
             // Create a basic tensor spec (simplified)
             const shape = [_]i32{-1}; // Dynamic shape for now
             var input_spec = try model.TensorSpec.init(self.allocator, onnx_input.name, &shape, .f32);
@@ -660,7 +693,7 @@ pub const ONNXParser = struct {
         }
 
         // Convert outputs
-        for (onnx_model.graph.outputs) |onnx_output| {
+        for (onnx_model.graph.outputs.items) |onnx_output| {
             // Create a basic tensor spec (simplified)
             const shape = [_]i32{-1}; // Dynamic shape for now
             var output_spec = try model.TensorSpec.init(self.allocator, onnx_output.name, &shape, .f32);
@@ -685,7 +718,7 @@ pub const ONNXParser = struct {
         }
 
         // Check for required graph
-        if (onnx_model.graph.nodes.len == 0) {
+        if (onnx_model.graph.nodes.items.len == 0) {
             return ONNXError.MissingGraph;
         }
 
