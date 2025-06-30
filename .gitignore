@@ -63,3 +63,12 @@ test-output/
 
 # Benchmark results
 benchmark-results/
+
+# Model files (too large for Git, use Git LFS or download separately)
+models/*.onnx
+models/*.safetensors
+models/*.bin
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.pb
