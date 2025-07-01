@@ -69,6 +69,7 @@ pub const VocabularyExtractor = struct {
     allocator: std.mem.Allocator,
     vocabulary: ?ModelVocabulary,
     model_path: ?[]const u8,
+    discovered_vocab_path: ?[]const u8,
     is_initialized: bool,
 
     const Self = @This();
@@ -78,6 +79,7 @@ pub const VocabularyExtractor = struct {
             .allocator = allocator,
             .vocabulary = null,
             .model_path = null,
+            .discovered_vocab_path = null,
             .is_initialized = false,
         };
     }
@@ -89,6 +91,10 @@ pub const VocabularyExtractor = struct {
         if (self.model_path) |path| {
             self.allocator.free(path);
         }
+        if (self.discovered_vocab_path) |path| {
+            self.allocator.free(path);
+        }
+        self.is_initialized = false;
     }
 
     /// Initialize vocabulary extractor with a specific model
@@ -113,6 +119,26 @@ pub const VocabularyExtractor = struct {
 
         // Extract vocabulary from the loaded model
         self.vocabulary = try self.extractVocabularyFromLoadedModel(model);
+        self.is_initialized = true;
+
+        std.debug.print("Vocabulary Extractor initialized with {d} tokens\n", .{self.vocabulary.?.vocab_size});
+    }
+
+    /// Initialize the vocabulary extractor with discovered model files
+    pub fn initializeWithDiscoveredFiles(self: *Self, model: *const onnx_parser.Model, vocab_file_path: ?[]const u8) !void {
+        _ = model; // Use the model parameter to avoid unused warning
+
+        if (self.is_initialized) {
+            return; // Already initialized
+        }
+
+        // Store vocabulary file path if provided
+        if (vocab_file_path) |vocab_path| {
+            self.discovered_vocab_path = try self.allocator.dupe(u8, vocab_path);
+        }
+
+        // Extract vocabulary from the loaded model
+        self.vocabulary = try self.extractVocabularyFromModel(""); // Empty path since model is already loaded
         self.is_initialized = true;
 
         std.debug.print("Vocabulary Extractor initialized with {d} tokens\n", .{self.vocabulary.?.vocab_size});
@@ -152,8 +178,8 @@ pub const VocabularyExtractor = struct {
             return token_id;
         }
 
-        // Return unknown token ID
-        return vocab.special_tokens.unk;
+        // Return error when word not found (let caller handle fallback)
+        return error.WordNotFound;
     }
 
     /// Extract vocabulary from ONNX model (REAL implementation)
@@ -270,12 +296,25 @@ pub const VocabularyExtractor = struct {
         return false;
     }
 
+    /// Get the correct vocabulary file path based on model path
+    fn getVocabularyFilePath(self: *Self) ![]u8 {
+        // Use discovered vocabulary path if available
+        if (self.discovered_vocab_path) |vocab_path| {
+            return try self.allocator.dupe(u8, vocab_path);
+        }
+
+        // Fallback to GPT-2 vocabulary path
+        return try self.allocator.dupe(u8, "models/gpt2/onnx/vocab.json");
+    }
+
     /// Strategy 0: Load vocabulary from JSON file
     fn loadVocabularyFromJSON(self: *Self, vocab: *ModelVocabulary) !bool {
         std.debug.print("  🔍 Loading vocabulary from JSON file...\n", .{});
 
-        // Try to open the vocab.json file
-        const vocab_file_path = "models/vocab.json";
+        // Determine the correct vocabulary file path based on model path
+        const vocab_file_path = try self.getVocabularyFilePath();
+        defer self.allocator.free(vocab_file_path);
+
         const file = std.fs.cwd().openFile(vocab_file_path, .{}) catch |err| {
             std.debug.print("    Could not open {s}: {}\n", .{ vocab_file_path, err });
             return false;
@@ -314,7 +353,7 @@ pub const VocabularyExtractor = struct {
             const token_value = entry.value_ptr.*;
 
             // Extract token ID from JSON value
-            const token_id = switch (token_value.*) {
+            const token_id = switch (token_value) {
                 .integer => |int_val| @as(i64, @intCast(int_val)),
                 .float => |float_val| @as(i64, @intFromFloat(float_val)),
                 else => {
