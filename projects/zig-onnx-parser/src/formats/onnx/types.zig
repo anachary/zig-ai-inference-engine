@@ -56,8 +56,7 @@ pub const ONNXDataType = enum(i32) {
     /// Check if data type is supported
     pub fn isSupported(self: ONNXDataType) bool {
         return switch (self) {
-            .float, .float16, .double, .int8, .int16, .int32, .int64,
-            .uint8, .uint16, .uint32, .uint64, .bool => true,
+            .float, .float16, .double, .int8, .int16, .int32, .int64, .uint8, .uint16, .uint32, .uint64, .bool => true,
             else => false,
         };
     }
@@ -107,7 +106,7 @@ pub const ONNXShape = struct {
     /// Get total number of elements (returns null if dynamic)
     pub fn numel(self: *const ONNXShape) ?usize {
         if (!self.isFullyDefined()) return null;
-        
+
         var total: usize = 1;
         for (self.dims) |dim| {
             total *= @as(usize, @intCast(dim));
@@ -118,7 +117,7 @@ pub const ONNXShape = struct {
     /// Convert to usize array (fails if dynamic dimensions present)
     pub fn toUsizeArray(self: *const ONNXShape, allocator: Allocator) ![]usize {
         if (!self.isFullyDefined()) return error.DynamicShape;
-        
+
         const result = try allocator.alloc(usize, self.dims.len);
         for (self.dims, 0..) |dim, i| {
             result[i] = @as(usize, @intCast(dim));
@@ -283,13 +282,13 @@ pub const ONNXNode = struct {
         allocator.free(self.op_type);
         allocator.free(self.domain);
         allocator.free(self.doc_string);
-        
+
         for (self.inputs) |input| allocator.free(input);
         allocator.free(self.inputs);
-        
+
         for (self.outputs) |output| allocator.free(output);
         allocator.free(self.outputs);
-        
+
         var attr_iter = self.attributes.iterator();
         while (attr_iter.next()) |entry| {
             entry.value_ptr.deinit(allocator);
@@ -336,19 +335,19 @@ pub const ONNXGraph = struct {
     pub fn deinit(self: *ONNXGraph, allocator: Allocator) void {
         allocator.free(self.name);
         allocator.free(self.doc_string);
-        
+
         for (self.nodes.items) |*node| node.deinit(allocator);
         self.nodes.deinit();
-        
+
         for (self.initializers.items) |*tensor| tensor.deinit(allocator);
         self.initializers.deinit();
-        
+
         for (self.inputs.items) |*input| input.deinit(allocator);
         self.inputs.deinit();
-        
+
         for (self.outputs.items) |*output| output.deinit(allocator);
         self.outputs.deinit();
-        
+
         for (self.value_info.items) |*info| info.deinit(allocator);
         self.value_info.deinit();
     }
@@ -378,17 +377,17 @@ pub const ONNXGraph = struct {
         // Check that all node inputs are either graph inputs or outputs of other nodes
         var available_values = std.StringHashMap(void).init(self.allocator);
         defer available_values.deinit();
-        
+
         // Add graph inputs
         for (self.inputs.items) |input| {
             try available_values.put(input.name, {});
         }
-        
+
         // Add initializers
         for (self.initializers.items) |initializer| {
             try available_values.put(initializer.name, {});
         }
-        
+
         // Check each node
         for (self.nodes.items) |node| {
             // Check inputs are available
@@ -398,13 +397,13 @@ pub const ONNXGraph = struct {
                     return error.MissingInput;
                 }
             }
-            
+
             // Add outputs to available values
             for (node.outputs) |output_name| {
                 try available_values.put(output_name, {});
             }
         }
-        
+
         // Check that all graph outputs are available
         for (self.outputs.items) |output| {
             if (!available_values.contains(output.name)) {
@@ -451,19 +450,19 @@ pub const ONNXModel = struct {
         allocator.free(self.producer_version);
         allocator.free(self.domain);
         allocator.free(self.doc_string);
-        
+
         for (self.opset_imports) |*import| {
             allocator.free(import.domain);
         }
         allocator.free(self.opset_imports);
-        
+
         var metadata_iter = self.metadata_props.iterator();
         while (metadata_iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
             allocator.free(entry.value_ptr.*);
         }
         self.metadata_props.deinit();
-        
+
         self.graph.deinit(allocator);
     }
 };

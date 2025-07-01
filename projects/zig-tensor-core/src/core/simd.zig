@@ -12,7 +12,7 @@ pub const SIMDError = error{
 pub fn isAvailable() bool {
     return switch (builtin.cpu.arch) {
         .x86_64 => std.Target.x86.featureSetHas(builtin.cpu.features, .sse) or
-                   std.Target.x86.featureSetHas(builtin.cpu.features, .avx2),
+            std.Target.x86.featureSetHas(builtin.cpu.features, .avx2),
         .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon),
         else => false,
     };
@@ -33,7 +33,7 @@ pub fn vectorAddF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
     if (a.len != b.len or a.len != result.len) {
         return SIMDError.InvalidLength;
     }
-    
+
     if (builtin.cpu.arch == .x86_64) {
         if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
             return vectorAddF32AVX2(a, b, result);
@@ -45,7 +45,7 @@ pub fn vectorAddF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
             return vectorAddF32NEON(a, b, result);
         }
     }
-    
+
     // Fallback to scalar implementation
     return vectorAddF32Scalar(a, b, result);
 }
@@ -55,11 +55,11 @@ pub fn vectorSubF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
     if (a.len != b.len or a.len != result.len) {
         return SIMDError.InvalidLength;
     }
-    
+
     if (builtin.cpu.arch == .x86_64 and std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
         return vectorSubF32AVX2(a, b, result);
     }
-    
+
     // Fallback to scalar
     for (a, b, result) |a_val, b_val, *r| {
         r.* = a_val - b_val;
@@ -71,11 +71,11 @@ pub fn vectorMulF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
     if (a.len != b.len or a.len != result.len) {
         return SIMDError.InvalidLength;
     }
-    
+
     if (builtin.cpu.arch == .x86_64 and std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
         return vectorMulF32AVX2(a, b, result);
     }
-    
+
     // Fallback to scalar
     for (a, b, result) |a_val, b_val, *r| {
         r.* = a_val * b_val;
@@ -87,7 +87,7 @@ pub fn vectorDivF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
     if (a.len != b.len or a.len != result.len) {
         return SIMDError.InvalidLength;
     }
-    
+
     // Fallback to scalar (division is typically not vectorized efficiently)
     for (a, b, result) |a_val, b_val, *r| {
         r.* = a_val / b_val;
@@ -105,15 +105,15 @@ fn vectorAddF32Scalar(a: []const f32, b: []const f32, result: []f32) void {
 fn vectorAddF32AVX2(a: []const f32, b: []const f32, result: []f32) void {
     const vec_size = 8; // AVX2 processes 8 f32s at once
     var i: usize = 0;
-    
+
     // Process 8 elements at a time
     while (i + vec_size <= a.len) : (i += vec_size) {
-        const va: @Vector(8, f32) = a[i..i+vec_size][0..8].*;
-        const vb: @Vector(8, f32) = b[i..i+vec_size][0..8].*;
+        const va: @Vector(8, f32) = a[i .. i + vec_size][0..8].*;
+        const vb: @Vector(8, f32) = b[i .. i + vec_size][0..8].*;
         const vr = va + vb;
-        result[i..i+vec_size][0..8].* = vr;
+        result[i .. i + vec_size][0..8].* = vr;
     }
-    
+
     // Handle remaining elements
     while (i < a.len) : (i += 1) {
         result[i] = a[i] + b[i];
@@ -124,15 +124,15 @@ fn vectorAddF32AVX2(a: []const f32, b: []const f32, result: []f32) void {
 fn vectorAddF32SSE(a: []const f32, b: []const f32, result: []f32) void {
     const vec_size = 4; // SSE processes 4 f32s at once
     var i: usize = 0;
-    
+
     // Process 4 elements at a time
     while (i + vec_size <= a.len) : (i += vec_size) {
-        const va: @Vector(4, f32) = a[i..i+vec_size][0..4].*;
-        const vb: @Vector(4, f32) = b[i..i+vec_size][0..4].*;
+        const va: @Vector(4, f32) = a[i .. i + vec_size][0..4].*;
+        const vb: @Vector(4, f32) = b[i .. i + vec_size][0..4].*;
         const vr = va + vb;
-        result[i..i+vec_size][0..4].* = vr;
+        result[i .. i + vec_size][0..4].* = vr;
     }
-    
+
     // Handle remaining elements
     while (i < a.len) : (i += 1) {
         result[i] = a[i] + b[i];
@@ -143,15 +143,15 @@ fn vectorAddF32SSE(a: []const f32, b: []const f32, result: []f32) void {
 fn vectorAddF32NEON(a: []const f32, b: []const f32, result: []f32) void {
     const vec_size = 4; // NEON processes 4 f32s at once
     var i: usize = 0;
-    
+
     // Process 4 elements at a time
     while (i + vec_size <= a.len) : (i += vec_size) {
-        const va: @Vector(4, f32) = a[i..i+vec_size][0..4].*;
-        const vb: @Vector(4, f32) = b[i..i+vec_size][0..4].*;
+        const va: @Vector(4, f32) = a[i .. i + vec_size][0..4].*;
+        const vb: @Vector(4, f32) = b[i .. i + vec_size][0..4].*;
         const vr = va + vb;
-        result[i..i+vec_size][0..4].* = vr;
+        result[i .. i + vec_size][0..4].* = vr;
     }
-    
+
     // Handle remaining elements
     while (i < a.len) : (i += 1) {
         result[i] = a[i] + b[i];
@@ -162,14 +162,14 @@ fn vectorAddF32NEON(a: []const f32, b: []const f32, result: []f32) void {
 fn vectorSubF32AVX2(a: []const f32, b: []const f32, result: []f32) void {
     const vec_size = 8;
     var i: usize = 0;
-    
+
     while (i + vec_size <= a.len) : (i += vec_size) {
-        const va: @Vector(8, f32) = a[i..i+vec_size][0..8].*;
-        const vb: @Vector(8, f32) = b[i..i+vec_size][0..8].*;
+        const va: @Vector(8, f32) = a[i .. i + vec_size][0..8].*;
+        const vb: @Vector(8, f32) = b[i .. i + vec_size][0..8].*;
         const vr = va - vb;
-        result[i..i+vec_size][0..8].* = vr;
+        result[i .. i + vec_size][0..8].* = vr;
     }
-    
+
     while (i < a.len) : (i += 1) {
         result[i] = a[i] - b[i];
     }
@@ -179,14 +179,14 @@ fn vectorSubF32AVX2(a: []const f32, b: []const f32, result: []f32) void {
 fn vectorMulF32AVX2(a: []const f32, b: []const f32, result: []f32) void {
     const vec_size = 8;
     var i: usize = 0;
-    
+
     while (i + vec_size <= a.len) : (i += vec_size) {
-        const va: @Vector(8, f32) = a[i..i+vec_size][0..8].*;
-        const vb: @Vector(8, f32) = b[i..i+vec_size][0..8].*;
+        const va: @Vector(8, f32) = a[i .. i + vec_size][0..8].*;
+        const vb: @Vector(8, f32) = b[i .. i + vec_size][0..8].*;
         const vr = va * vb;
-        result[i..i+vec_size][0..8].* = vr;
+        result[i .. i + vec_size][0..8].* = vr;
     }
-    
+
     while (i < a.len) : (i += 1) {
         result[i] = a[i] * b[i];
     }
@@ -197,11 +197,11 @@ pub fn vectorDotF32(a: []const f32, b: []const f32) SIMDError!f32 {
     if (a.len != b.len) {
         return SIMDError.InvalidLength;
     }
-    
+
     if (builtin.cpu.arch == .x86_64 and std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
         return vectorDotF32AVX2(a, b);
     }
-    
+
     // Fallback to scalar
     var sum: f32 = 0.0;
     for (a, b) |a_val, b_val| {
@@ -215,25 +215,25 @@ fn vectorDotF32AVX2(a: []const f32, b: []const f32) f32 {
     const vec_size = 8;
     var i: usize = 0;
     var sum_vec: @Vector(8, f32) = @splat(0.0);
-    
+
     // Process 8 elements at a time
     while (i + vec_size <= a.len) : (i += vec_size) {
-        const va: @Vector(8, f32) = a[i..i+vec_size][0..8].*;
-        const vb: @Vector(8, f32) = b[i..i+vec_size][0..8].*;
+        const va: @Vector(8, f32) = a[i .. i + vec_size][0..8].*;
+        const vb: @Vector(8, f32) = b[i .. i + vec_size][0..8].*;
         sum_vec += va * vb;
     }
-    
+
     // Horizontal sum of vector
     var sum: f32 = 0.0;
     for (0..8) |j| {
         sum += sum_vec[j];
     }
-    
+
     // Handle remaining elements
     while (i < a.len) : (i += 1) {
         sum += a[i] * b[i];
     }
-    
+
     return sum;
 }
 
@@ -242,11 +242,11 @@ pub fn vectorScalarMulF32(scalar: f32, vector: []const f32, result: []f32) SIMDE
     if (vector.len != result.len) {
         return SIMDError.InvalidLength;
     }
-    
+
     if (builtin.cpu.arch == .x86_64 and std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
         return vectorScalarMulF32AVX2(scalar, vector, result);
     }
-    
+
     // Fallback to scalar
     for (vector, result) |v, *r| {
         r.* = scalar * v;
@@ -258,13 +258,13 @@ fn vectorScalarMulF32AVX2(scalar: f32, vector: []const f32, result: []f32) void 
     const vec_size = 8;
     var i: usize = 0;
     const scalar_vec: @Vector(8, f32) = @splat(scalar);
-    
+
     while (i + vec_size <= vector.len) : (i += vec_size) {
-        const v: @Vector(8, f32) = vector[i..i+vec_size][0..8].*;
+        const v: @Vector(8, f32) = vector[i .. i + vec_size][0..8].*;
         const vr = scalar_vec * v;
-        result[i..i+vec_size][0..8].* = vr;
+        result[i .. i + vec_size][0..8].* = vr;
     }
-    
+
     while (i < vector.len) : (i += 1) {
         result[i] = scalar * vector[i];
     }
@@ -275,7 +275,7 @@ pub fn vectorSumF32(vector: []const f32) f32 {
     if (builtin.cpu.arch == .x86_64 and std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
         return vectorSumF32AVX2(vector);
     }
-    
+
     // Fallback to scalar
     var sum: f32 = 0.0;
     for (vector) |v| {
@@ -289,23 +289,23 @@ fn vectorSumF32AVX2(vector: []const f32) f32 {
     const vec_size = 8;
     var i: usize = 0;
     var sum_vec: @Vector(8, f32) = @splat(0.0);
-    
+
     while (i + vec_size <= vector.len) : (i += vec_size) {
-        const v: @Vector(8, f32) = vector[i..i+vec_size][0..8].*;
+        const v: @Vector(8, f32) = vector[i .. i + vec_size][0..8].*;
         sum_vec += v;
     }
-    
+
     // Horizontal sum
     var sum: f32 = 0.0;
     for (0..8) |j| {
         sum += sum_vec[j];
     }
-    
+
     // Handle remaining elements
     while (i < vector.len) : (i += 1) {
         sum += vector[i];
     }
-    
+
     return sum;
 }
 
@@ -348,5 +348,5 @@ test "SIMD vector operations" {
     for (0..size) |i| {
         expected_dot += @as(f32, @floatFromInt(i)) * @as(f32, @floatFromInt(i + 1));
     }
-    try testing.expect(@abs(dot - expected_dot) < 0.001);
+    try testing.expect(@fabs(dot - expected_dot) < 0.001);
 }

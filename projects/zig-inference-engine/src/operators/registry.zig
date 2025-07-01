@@ -2,8 +2,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 // Import common interfaces
-const TensorInterface = @import("../../../common/interfaces/tensor.zig").TensorInterface;
-const ModelInterface = @import("../../../common/interfaces/model.zig");
+const tensor_core = @import("zig-tensor-core");
+const TensorInterface = tensor_core.TensorInterface;
+// ModelInterface will be defined locally for now
 
 /// Operator function signature
 pub const OperatorFn = *const fn (
@@ -46,7 +47,7 @@ pub const RegistryError = error{
 pub const OperatorRegistry = struct {
     allocator: Allocator,
     operators: std.StringHashMap(OperatorInfo),
-    
+
     const Self = @This();
 
     /// Initialize the operator registry
@@ -67,7 +68,7 @@ pub const OperatorRegistry = struct {
         if (self.operators.contains(info.name)) {
             return RegistryError.OperatorAlreadyExists;
         }
-        
+
         try self.operators.put(info.name, info);
     }
 
@@ -85,16 +86,16 @@ pub const OperatorRegistry = struct {
         attributes: std.StringHashMap([]const u8),
     ) !void {
         const op_info = self.getOperator(name) orelse return RegistryError.OperatorNotFound;
-        
+
         // Validate input/output counts
         if (inputs.len < op_info.min_inputs or inputs.len > op_info.max_inputs) {
             return RegistryError.ValidationFailed;
         }
-        
+
         if (outputs.len < op_info.min_outputs or outputs.len > op_info.max_outputs) {
             return RegistryError.ValidationFailed;
         }
-        
+
         // Execute the operator
         try op_info.compute_fn(inputs, outputs, attributes, self.allocator);
     }
@@ -234,21 +235,24 @@ pub fn getRegistryStats(registry: *const OperatorRegistry) RegistryStats {
     var iterator = registry.operators.iterator();
     while (iterator.next()) |entry| {
         const name = entry.key_ptr.*;
-        
-        if (std.mem.startsWith(u8, name, "Add") or 
-            std.mem.startsWith(u8, name, "Sub") or 
-            std.mem.startsWith(u8, name, "Mul") or 
-            std.mem.startsWith(u8, name, "Div")) {
+
+        if (std.mem.startsWith(u8, name, "Add") or
+            std.mem.startsWith(u8, name, "Sub") or
+            std.mem.startsWith(u8, name, "Mul") or
+            std.mem.startsWith(u8, name, "Div"))
+        {
             stats.arithmetic_ops += 1;
-        } else if (std.mem.startsWith(u8, name, "MatMul") or 
-                   std.mem.startsWith(u8, name, "Gemm") or 
-                   std.mem.startsWith(u8, name, "Transpose")) {
+        } else if (std.mem.startsWith(u8, name, "MatMul") or
+            std.mem.startsWith(u8, name, "Gemm") or
+            std.mem.startsWith(u8, name, "Transpose"))
+        {
             stats.matrix_ops += 1;
         } else if (std.mem.startsWith(u8, name, "Conv")) {
             stats.conv_ops += 1;
-        } else if (std.mem.startsWith(u8, name, "ReLU") or 
-                   std.mem.startsWith(u8, name, "Sigmoid") or 
-                   std.mem.startsWith(u8, name, "Tanh")) {
+        } else if (std.mem.startsWith(u8, name, "ReLU") or
+            std.mem.startsWith(u8, name, "Sigmoid") or
+            std.mem.startsWith(u8, name, "Tanh"))
+        {
             stats.activation_ops += 1;
         } else if (std.mem.startsWith(u8, name, "Pool")) {
             stats.pooling_ops += 1;
@@ -256,9 +260,10 @@ pub fn getRegistryStats(registry: *const OperatorRegistry) RegistryStats {
             stats.normalization_ops += 1;
         } else if (std.mem.startsWith(u8, name, "Reduce")) {
             stats.reduction_ops += 1;
-        } else if (std.mem.startsWith(u8, name, "Concat") or 
-                   std.mem.startsWith(u8, name, "Split") or 
-                   std.mem.startsWith(u8, name, "Slice")) {
+        } else if (std.mem.startsWith(u8, name, "Concat") or
+            std.mem.startsWith(u8, name, "Split") or
+            std.mem.startsWith(u8, name, "Slice"))
+        {
             stats.shape_ops += 1;
         } else {
             stats.custom_ops += 1;

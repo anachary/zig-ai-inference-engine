@@ -33,15 +33,15 @@ pub const Config = struct {
     max_memory_mb: u32 = 1024,
     tensor_pool_size: usize = 100,
     arena_size_mb: u32 = 256,
-    
+
     /// SIMD settings
     enable_simd: bool = true,
     simd_alignment: u8 = 32,
-    
+
     /// Debug settings
     enable_bounds_checking: bool = true,
     enable_memory_tracking: bool = false,
-    
+
     /// Validate configuration
     pub fn validate(self: *const Config) bool {
         if (self.max_memory_mb == 0) return false;
@@ -50,7 +50,7 @@ pub const Config = struct {
         if (self.arena_size_mb > self.max_memory_mb) return false;
         return true;
     }
-    
+
     /// Get recommended configuration for device type
     pub fn forDevice(device_type: DeviceType, available_memory_mb: u32) Config {
         return switch (device_type) {
@@ -99,23 +99,23 @@ pub const TensorCore = struct {
     memory_manager: MemoryManager,
     tensor_pool: TensorPool,
     memory_tracker: ?MemoryTracker,
-    
+
     const Self = @This();
-    
+
     /// Initialize tensor core with configuration
     pub fn init(allocator: std.mem.Allocator, config: Config) !Self {
         if (!config.validate()) {
             return error.InvalidConfiguration;
         }
-        
+
         var memory_manager = MemoryManager.init(allocator);
         var tensor_pool = TensorPool.init(allocator, config.tensor_pool_size);
-        
+
         var memory_tracker: ?MemoryTracker = null;
         if (config.enable_memory_tracking) {
             memory_tracker = MemoryTracker.init(allocator);
         }
-        
+
         return Self{
             .allocator = allocator,
             .config = config,
@@ -124,7 +124,7 @@ pub const TensorCore = struct {
             .memory_tracker = memory_tracker,
         };
     }
-    
+
     /// Deinitialize tensor core
     pub fn deinit(self: *Self) void {
         self.tensor_pool.deinit();
@@ -133,37 +133,37 @@ pub const TensorCore = struct {
             tracker.deinit();
         }
     }
-    
+
     /// Create a new tensor
-    pub fn createTensor(self: *Self, shape: []const usize, dtype: DataType) !Tensor {
-        return self.tensor_pool.getTensor(shape, dtype);
+    pub fn createTensor(self: *Self, tensor_shape: []const usize, dtype: DataType) !Tensor {
+        return self.tensor_pool.getTensor(tensor_shape, dtype);
     }
-    
+
     /// Return a tensor to the pool
     pub fn returnTensor(self: *Self, tensor: Tensor) !void {
         return self.tensor_pool.returnTensor(tensor);
     }
-    
+
     /// Get temporary allocator
     pub fn tempAllocator(self: *Self) std.mem.Allocator {
         return self.memory_manager.temporaryAllocator();
     }
-    
+
     /// Get scratch allocator
     pub fn scratchAllocator(self: *Self) std.mem.Allocator {
         return self.memory_manager.scratchAllocator();
     }
-    
+
     /// Reset temporary memory
     pub fn resetTemp(self: *Self) void {
         self.memory_manager.resetTemporary();
     }
-    
+
     /// Reset scratch memory
     pub fn resetScratch(self: *Self) void {
         self.memory_manager.resetScratch();
     }
-    
+
     /// Get memory statistics
     pub fn getMemoryStats(self: *Self) ?pool.MemoryStats {
         if (self.memory_tracker) |*tracker| {
@@ -171,7 +171,7 @@ pub const TensorCore = struct {
         }
         return null;
     }
-    
+
     /// Get tensor pool statistics
     pub fn getPoolStats(self: *const Self) pool.PoolStats {
         return self.tensor_pool.getStats();
@@ -181,15 +181,15 @@ pub const TensorCore = struct {
 /// Convenience functions for common operations
 pub const ops = struct {
     /// Create a tensor filled with zeros
-    pub fn zeros(allocator: std.mem.Allocator, shape: []const usize, dtype: DataType) !Tensor {
-        var tensor = try Tensor.init(allocator, shape, dtype);
+    pub fn zeros(allocator: std.mem.Allocator, tensor_shape: []const usize, dtype: DataType) !Tensor {
+        var tensor = try Tensor.init(allocator, tensor_shape, dtype);
         tensor.zero();
         return tensor;
     }
-    
+
     /// Create a tensor filled with ones
-    pub fn ones(allocator: std.mem.Allocator, shape: []const usize, dtype: DataType) !Tensor {
-        var tensor = try Tensor.init(allocator, shape, dtype);
+    pub fn ones(allocator: std.mem.Allocator, tensor_shape: []const usize, dtype: DataType) !Tensor {
+        var tensor = try Tensor.init(allocator, tensor_shape, dtype);
         switch (dtype) {
             .f32 => try tensor.fill(@as(f32, 1.0)),
             .i32 => try tensor.fill(@as(i32, 1)),
@@ -199,19 +199,19 @@ pub const ops = struct {
         }
         return tensor;
     }
-    
+
     /// Create a tensor filled with a specific value
-    pub fn full(allocator: std.mem.Allocator, shape: []const usize, dtype: DataType, value: anytype) !Tensor {
-        var tensor = try Tensor.init(allocator, shape, dtype);
+    pub fn full(allocator: std.mem.Allocator, tensor_shape: []const usize, dtype: DataType, value: anytype) !Tensor {
+        var tensor = try Tensor.init(allocator, tensor_shape, dtype);
         try tensor.fill(value);
         return tensor;
     }
-    
+
     /// Create an identity matrix
     pub fn eye(allocator: std.mem.Allocator, n: usize, dtype: DataType) !Tensor {
-        const shape = [_]usize{ n, n };
-        var tensor = try zeros(allocator, &shape, dtype);
-        
+        const matrix_shape = [_]usize{ n, n };
+        var tensor = try zeros(allocator, &matrix_shape, dtype);
+
         switch (dtype) {
             .f32 => {
                 for (0..n) |i| {
@@ -225,13 +225,13 @@ pub const ops = struct {
             },
             else => return TensorError.UnsupportedDataType,
         }
-        
+
         return tensor;
     }
-    
+
     /// Create a tensor from a slice of data
-    pub fn fromSlice(allocator: std.mem.Allocator, data: anytype, shape: []const usize) !Tensor {
-        return Tensor.fromSlice(allocator, data, shape);
+    pub fn fromSlice(allocator: std.mem.Allocator, data: anytype, tensor_shape: []const usize) !Tensor {
+        return Tensor.fromSlice(allocator, data, tensor_shape);
     }
 };
 
@@ -247,18 +247,18 @@ pub const version = struct {
 test "tensor core initialization" {
     const testing = std.testing;
     const allocator = testing.allocator;
-    
+
     const config = Config.forDevice(.desktop, 4096);
     var core = try TensorCore.init(allocator, config);
     defer core.deinit();
-    
+
     // Test tensor creation
     var tensor = try core.createTensor(&[_]usize{ 2, 3 }, .f32);
     try tensor.fill(@as(f32, 5.0));
-    
+
     // Return to pool
     try core.returnTensor(tensor);
-    
+
     // Get pool stats
     const stats = core.getPoolStats();
     try testing.expect(stats.num_pools >= 1);
@@ -267,17 +267,17 @@ test "tensor core initialization" {
 test "convenience operations" {
     const testing = std.testing;
     const allocator = testing.allocator;
-    
+
     // Test zeros
     var zeros_tensor = try ops.zeros(allocator, &[_]usize{ 2, 2 }, .f32);
     defer zeros_tensor.deinit();
     try testing.expect(try zeros_tensor.getF32(&[_]usize{ 0, 0 }) == 0.0);
-    
+
     // Test ones
     var ones_tensor = try ops.ones(allocator, &[_]usize{ 2, 2 }, .f32);
     defer ones_tensor.deinit();
     try testing.expect(try ones_tensor.getF32(&[_]usize{ 0, 0 }) == 1.0);
-    
+
     // Test identity matrix
     var eye_tensor = try ops.eye(allocator, 3, .f32);
     defer eye_tensor.deinit();
@@ -288,14 +288,14 @@ test "convenience operations" {
 
 test "configuration validation" {
     const testing = std.testing;
-    
+
     const valid_config = Config{
         .max_memory_mb = 1024,
         .tensor_pool_size = 100,
         .simd_alignment = 16,
     };
     try testing.expect(valid_config.validate());
-    
+
     const invalid_config = Config{
         .max_memory_mb = 0, // Invalid
         .tensor_pool_size = 100,

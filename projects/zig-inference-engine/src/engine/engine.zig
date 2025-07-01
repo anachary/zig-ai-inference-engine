@@ -1,11 +1,31 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// Import common interfaces
-const TensorInterface = @import("../../../common/interfaces/tensor.zig").TensorInterface;
-const ModelInterface = @import("../../../common/interfaces/model.zig").ModelInterface;
-const InferenceInterface = @import("../../../common/interfaces/model.zig").InferenceInterface;
-const DeviceInterface = @import("../../../common/interfaces/device.zig").DeviceInterface;
+// Import tensor core for interfaces
+const tensor_core = @import("zig-tensor-core");
+const TensorInterface = tensor_core.TensorInterface;
+
+// Define basic interfaces for the engine
+const ModelInterface = struct {
+    ctx: *anyopaque,
+    impl: *const ModelImpl,
+};
+
+const ModelImpl = struct {
+    validateFn: *const fn (ctx: *anyopaque, model: *anyopaque) anyerror!void,
+    getMetadataFn: *const fn (ctx: *anyopaque) anyerror!ModelMetadata,
+};
+
+const ModelMetadata = struct {
+    name: []const u8,
+    input_count: usize,
+    output_count: usize,
+};
+
+const DeviceInterface = struct {
+    device_type: DeviceType,
+    device_id: u32,
+};
 
 // Import other modules (will be implemented)
 const OperatorRegistry = @import("../operators/registry.zig").OperatorRegistry;

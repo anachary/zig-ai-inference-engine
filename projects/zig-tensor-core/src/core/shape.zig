@@ -111,7 +111,7 @@ pub fn broadcastShapes(shape1: []const usize, shape2: []const usize, allocator: 
 /// Check if two shapes are broadcastable
 pub fn canBroadcast(shape1: []const usize, shape2: []const usize) bool {
     const max_ndim = @max(shape1.len, shape2.len);
-    
+
     var i: usize = 0;
     while (i < max_ndim) : (i += 1) {
         const dim1 = if (i < shape1.len) shape1[shape1.len - 1 - i] else 1;
@@ -152,7 +152,7 @@ pub fn computeMultiIndex(flat_index: usize, shape: []const usize, allocator: All
 /// Transpose shape (reverse dimensions)
 pub fn transposeShape(shape: []const usize, allocator: Allocator) ![]usize {
     const transposed = try allocator.alloc(usize, shape.len);
-    
+
     for (shape, 0..) |dim, i| {
         transposed[shape.len - 1 - i] = dim;
     }
@@ -179,15 +179,15 @@ pub fn unsqueezeShape(shape: []const usize, axis: usize, allocator: Allocator) !
     if (axis > shape.len) return ShapeError.InvalidShape;
 
     const new_shape = try allocator.alloc(usize, shape.len + 1);
-    
+
     // Copy dimensions before axis
     for (0..axis) |i| {
         new_shape[i] = shape[i];
     }
-    
+
     // Insert new dimension
     new_shape[axis] = 1;
-    
+
     // Copy dimensions after axis
     for (axis..shape.len) |i| {
         new_shape[i + 1] = shape[i];
@@ -225,7 +225,7 @@ pub const reshape = struct {
         var result = std.ArrayList(usize).init(std.heap.page_allocator);
         defer result.deinit();
 
-        for (new_shape, 0..) |dim, i| {
+        for (new_shape) |dim| {
             if (dim == -1) {
                 if (new_numel == 0) return ShapeError.InvalidShape;
                 const inferred_dim = old_numel / new_numel;

@@ -467,10 +467,10 @@ pub const ModelStats = struct {
 
     pub fn print(self: *const ModelStats) void {
         std.log.info("=== Model Statistics ===");
-        std.log.info("Nodes: {}", .{self.node_count});
-        std.log.info("Inputs: {}", .{self.input_count});
-        std.log.info("Outputs: {}", .{self.output_count});
-        std.log.info("Parameters: {}", .{self.parameter_count});
+        std.log.info("Nodes: {d}", .{self.node_count});
+        std.log.info("Inputs: {d}", .{self.input_count});
+        std.log.info("Outputs: {d}", .{self.output_count});
+        std.log.info("Parameters: {d}", .{self.parameter_count});
         std.log.info("Size: {d:.1} MB", .{@as(f64, @floatFromInt(self.model_size_bytes)) / (1024.0 * 1024.0)});
     }
 };

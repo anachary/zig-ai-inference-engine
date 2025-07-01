@@ -51,7 +51,7 @@ pub fn main() !void {
         const wire_type = byte & 0x07;
 
         if (field_number > 0 and field_number <= 15 and wire_type <= 5) {
-            print("Byte {}: Field {} Wire Type {} ", .{ i, field_number, wire_type });
+            print("Byte {d}: Field {d} Wire Type {d} ", .{ i, field_number, wire_type });
             switch (wire_type) {
                 0 => print("(varint)\n", .{}),
                 1 => print("(64-bit)\n", .{}),
@@ -81,15 +81,15 @@ pub fn main() !void {
         switch (field_number) {
             1 => if (wire_type == 0) {
                 found_ir_version = true;
-                print("Found IR version field at byte {}\n", .{idx});
+                print("Found IR version field at byte {d}\n", .{idx});
             },
             2 => if (wire_type == 2) {
                 found_graph = true;
-                print("Found graph field at byte {}\n", .{idx});
+                print("Found graph field at byte {d}\n", .{idx});
             },
             8 => if (wire_type == 2) {
                 found_opset = true;
-                print("Found opset import field at byte {}\n", .{idx});
+                print("Found opset import field at byte {d}\n", .{idx});
             },
             else => {},
         }

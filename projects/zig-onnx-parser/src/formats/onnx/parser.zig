@@ -79,14 +79,14 @@ pub const ONNXParser = struct {
         defer file.close();
 
         const file_size = file.getEndPos() catch |err| {
-            std.log.err("Failed to get file size: {}", .{err});
+            std.log.err("Failed to get file size: {any}", .{err});
             return ONNXError.ParseError;
         };
 
         // Check file size limit
         const max_size = @as(u64, self.config.max_model_size_mb) * 1024 * 1024;
         if (file_size > max_size) {
-            std.log.err("Model file too large: {} bytes (max: {} MB)", .{ file_size, self.config.max_model_size_mb });
+            std.log.err("Model file too large: {d} bytes (max: {d} MB)", .{ file_size, self.config.max_model_size_mb });
             return ONNXError.ParseError;
         }
 
@@ -94,7 +94,7 @@ pub const ONNXParser = struct {
         defer self.allocator.free(file_data);
 
         _ = file.readAll(file_data) catch |err| {
-            std.log.err("Failed to read file data: {}", .{err});
+            std.log.err("Failed to read file data: {any}", .{err});
             return ONNXError.ParseError;
         };
         std.log.info("📊 File size: {d:.1} MB", .{@as(f64, @floatFromInt(file_size)) / (1024.0 * 1024.0)});
@@ -118,23 +118,23 @@ pub const ONNXParser = struct {
 
         // Parse ONNX ModelProto with enhanced error handling
         var onnx_model = self.parseModelProto(&pb_parser) catch |err| {
-            std.log.err("❌ Failed to parse ModelProto: {}", .{err});
+            std.log.err("❌ Failed to parse ModelProto: {any}", .{err});
             std.log.info("💡 This might be due to: {s}", .{"compatibility issues"});
             std.log.info("   - Unsupported ONNX version: {s}", .{"check compatibility"});
-            std.log.info("   - Corrupted model file");
-            std.log.info("   - Complex model features not yet supported");
+            std.log.info("   - Corrupted model file", .{});
+            std.log.info("   - Complex model features not yet supported", .{});
             return err;
         };
         defer onnx_model.deinit(self.allocator);
 
-        std.log.info("✅ ModelProto parsed successfully");
+        std.log.info("✅ ModelProto parsed successfully", .{});
         std.log.info("📋 Model info: {s} v{s}", .{ onnx_model.producer_name, onnx_model.producer_version });
 
         // Validate opset version with detailed feedback
         self.validateOpsetVersion(&onnx_model) catch |err| {
-            std.log.warn("⚠️  Opset validation failed: {}", .{err});
+            std.log.warn("⚠️  Opset validation failed: {any}", .{err});
             if (!self.config.strict_validation) {
-                std.log.info("🔄 Continuing with relaxed validation...");
+                std.log.info("🔄 Continuing with relaxed validation...", .{});
             } else {
                 return err;
             }
@@ -143,24 +143,24 @@ pub const ONNXParser = struct {
         // Validate model if strict validation is enabled
         if (self.config.strict_validation) {
             onnx_model.graph.validate() catch |err| {
-                std.log.warn("⚠️  Graph validation failed: {}", .{err});
-                std.log.info("💡 Try setting strict_validation = false for experimental models");
+                std.log.warn("⚠️  Graph validation failed: {any}", .{err});
+                std.log.info("💡 Try setting strict_validation = false for experimental models", .{});
                 return err;
             };
         }
 
         // Convert to internal model format with enhanced conversion
         const parsed_model = self.convertToInternalModel(onnx_model) catch |err| {
-            std.log.err("❌ Failed to convert to internal format: {}", .{err});
-            std.log.info("💡 This model may use features not yet supported");
+            std.log.err("❌ Failed to convert to internal format: {any}", .{err});
+            std.log.info("💡 This model may use features not yet supported", .{});
             return err;
         };
 
-        std.log.info("✅ ONNX model parsed successfully");
-        std.log.info("📊 Final model stats:");
-        std.log.info("   - Nodes: {}", .{parsed_model.graph.nodes.items.len});
-        std.log.info("   - Inputs: {}", .{parsed_model.graph.inputs.items.len});
-        std.log.info("   - Outputs: {}", .{parsed_model.graph.outputs.items.len});
+        std.log.info("✅ ONNX model parsed successfully", .{});
+        std.log.info("📊 Final model stats:", .{});
+        std.log.info("   - Nodes: {d}", .{parsed_model.graph.nodes.items.len});
+        std.log.info("   - Inputs: {d}", .{parsed_model.graph.inputs.items.len});
+        std.log.info("   - Outputs: {d}", .{parsed_model.graph.outputs.items.len});
 
         return parsed_model;
     }
@@ -183,7 +183,7 @@ pub const ONNXParser = struct {
                 1 => { // ir_version
                     if (header.wire_type == .varint) {
                         ir_version = try parser.readInt64();
-                        std.log.info("IR Version: {}", .{ir_version});
+                        std.log.info("IR Version: {d}", .{ir_version});
                     } else {
                         try parser.skipField(header.wire_type);
                     }
@@ -225,11 +225,11 @@ pub const ONNXParser = struct {
                 else => {
                     // Enhanced unknown field handling with error recovery
                     if (self.config.verbose_logging) {
-                        std.log.info("Skipping unknown ModelProto field {} with wire type {}", .{ header.field_number, header.wire_type });
+                        std.log.info("Skipping unknown ModelProto field {d} with wire type {d}", .{ header.field_number, header.wire_type });
                     }
                     parser.skipField(header.wire_type) catch |err| {
                         if (self.config.error_recovery) {
-                            std.log.warn("Error skipping ModelProto field {}: {}, continuing", .{ header.field_number, err });
+                            std.log.warn("Error skipping ModelProto field {d}: {any}, continuing", .{ header.field_number, err });
                         } else {
                             return err;
                         }
@@ -245,6 +245,11 @@ pub const ONNXParser = struct {
 
         var onnx_model = try ONNXModel.init(self.allocator, graph.?);
         onnx_model.ir_version = ir_version;
+
+        // Free the default strings before overwriting them
+        self.allocator.free(onnx_model.producer_name);
+        self.allocator.free(onnx_model.producer_version);
+
         onnx_model.producer_name = producer_name;
         onnx_model.producer_version = producer_version;
         onnx_model.opset_imports = try opset_imports.toOwnedSlice();
@@ -305,7 +310,8 @@ pub const ONNXParser = struct {
                 },
                 13 => { // value_info (intermediate values)
                     if (header.wire_type == .length_delimited) {
-                        const value_info = try self.parseValueInfoProto(&sub_parser);
+                        var value_info = try self.parseValueInfoProto(&sub_parser);
+                        defer value_info.deinit(self.allocator); // Clean up immediately since we don't store it
                         // Store intermediate value info if needed
                         if (self.config.verbose_logging) {
                             std.log.info("Found intermediate value: {s}", .{value_info.name});
@@ -328,11 +334,11 @@ pub const ONNXParser = struct {
                 else => {
                     // Enhanced unknown field handling with error recovery
                     if (self.config.verbose_logging) {
-                        std.log.info("Skipping unknown GraphProto field {} with wire type {}", .{ header.field_number, header.wire_type });
+                        std.log.info("Skipping unknown GraphProto field {d} with wire type {d}", .{ header.field_number, header.wire_type });
                     }
                     sub_parser.skipField(header.wire_type) catch |err| {
                         if (self.config.error_recovery) {
-                            std.log.warn("Error skipping GraphProto field {}: {}, continuing", .{ header.field_number, err });
+                            std.log.warn("Error skipping GraphProto field {d}: {any}, continuing", .{ header.field_number, err });
                         } else {
                             return err;
                         }
@@ -342,10 +348,10 @@ pub const ONNXParser = struct {
         }
 
         std.log.info("📊 Graph statistics: {s}", .{"analyzing"});
-        std.log.info("  Nodes: {}", .{graph.nodes.items.len});
-        std.log.info("  Inputs: {}", .{graph.inputs.items.len});
-        std.log.info("  Outputs: {}", .{graph.outputs.items.len});
-        std.log.info("  Initializers: {}", .{graph.initializers.items.len});
+        std.log.info("  Nodes: {d}", .{graph.nodes.items.len});
+        std.log.info("  Inputs: {d}", .{graph.inputs.items.len});
+        std.log.info("  Outputs: {d}", .{graph.outputs.items.len});
+        std.log.info("  Initializers: {d}", .{graph.initializers.items.len});
 
         return graph;
     }
@@ -421,11 +427,11 @@ pub const ONNXParser = struct {
                 else => {
                     // Enhanced unknown field handling for nodes
                     if (self.config.verbose_logging) {
-                        std.log.info("Skipping unknown NodeProto field {} for node {s}", .{ header.field_number, node.name });
+                        std.log.info("Skipping unknown NodeProto field {d} for node {s}", .{ header.field_number, node.name });
                     }
                     sub_parser.skipField(header.wire_type) catch |err| {
                         if (self.config.error_recovery) {
-                            std.log.warn("Error skipping NodeProto field {}: {}, continuing", .{ header.field_number, err });
+                            std.log.warn("Error skipping NodeProto field {d}: {any}, continuing", .{ header.field_number, err });
                         } else {
                             return err;
                         }
@@ -445,7 +451,14 @@ pub const ONNXParser = struct {
         const data = try parser.readBytes();
         var sub_parser = ProtobufParser.init(self.allocator, data);
 
-        var value_info = try ONNXValueInfo.init(self.allocator, "", "");
+        // Initialize with default values without allocating
+        var value_info = ONNXValueInfo{
+            .name = "",
+            .type = null,
+            .doc_string = "",
+        };
+        var name_allocated = false;
+        var doc_allocated = false;
 
         while (sub_parser.hasMoreData()) {
             const header = sub_parser.readFieldHeader() catch break;
@@ -453,8 +466,22 @@ pub const ONNXParser = struct {
             switch (header.field_number) {
                 1 => { // name
                     if (header.wire_type == .length_delimited) {
-                        self.allocator.free(value_info.name);
+                        if (name_allocated) {
+                            self.allocator.free(value_info.name);
+                        }
                         value_info.name = try self.allocator.dupe(u8, try sub_parser.readString());
+                        name_allocated = true;
+                    } else {
+                        try sub_parser.skipField(header.wire_type);
+                    }
+                },
+                6 => { // doc_string
+                    if (header.wire_type == .length_delimited) {
+                        if (doc_allocated) {
+                            self.allocator.free(value_info.doc_string);
+                        }
+                        value_info.doc_string = try self.allocator.dupe(u8, try sub_parser.readString());
+                        doc_allocated = true;
                     } else {
                         try sub_parser.skipField(header.wire_type);
                     }
@@ -463,6 +490,14 @@ pub const ONNXParser = struct {
                     try sub_parser.skipField(header.wire_type);
                 },
             }
+        }
+
+        // Ensure all strings are allocated (use empty string if not set)
+        if (!name_allocated) {
+            value_info.name = try self.allocator.dupe(u8, "");
+        }
+        if (!doc_allocated) {
+            value_info.doc_string = try self.allocator.dupe(u8, "");
         }
 
         return value_info;
@@ -570,15 +605,15 @@ pub const ONNXParser = struct {
         for (onnx_model.opset_imports) |opset| {
             if (std.mem.eql(u8, opset.domain, "") or std.mem.eql(u8, opset.domain, "ai.onnx")) {
                 if (opset.version < self.config.min_opset_version or opset.version > self.config.max_opset_version) {
-                    std.log.err("Unsupported opset version: {} (supported: {}-{})", .{ opset.version, self.config.min_opset_version, self.config.max_opset_version });
+                    std.log.err("Unsupported opset version: {d} (supported: {d}-{d})", .{ opset.version, self.config.min_opset_version, self.config.max_opset_version });
                     return ONNXError.UnsupportedOpset;
                 }
-                std.log.info("✅ Opset version {} is supported", .{opset.version});
+                std.log.info("✅ Opset version {d} is supported", .{opset.version});
                 return;
             }
         }
 
-        std.log.warn("No standard opset found, assuming default version");
+        std.log.warn("No standard opset found, assuming default version", .{});
     }
 
     /// Convert ONNX model to internal representation
@@ -618,7 +653,7 @@ pub const ONNXParser = struct {
                 onnx_node.op_type,
             ) catch |err| {
                 if (self.config.error_recovery) {
-                    std.log.warn("Failed to create node {s} ({}): {}, skipping", .{ onnx_node.name, onnx_node.op_type, err });
+                    std.log.warn("Failed to create node {s} ({s}): {any}, skipping", .{ onnx_node.name, onnx_node.op_type, err });
                     skipped_nodes += 1;
                     continue;
                 } else {
@@ -628,7 +663,7 @@ pub const ONNXParser = struct {
 
             internal_model.graph.addNode(internal_node) catch |err| {
                 if (self.config.error_recovery) {
-                    std.log.warn("Failed to add node {s}: {}, skipping", .{ onnx_node.name, err });
+                    std.log.warn("Failed to add node {s}: {any}, skipping", .{ onnx_node.name, err });
                     skipped_nodes += 1;
                     continue;
                 } else {
@@ -639,10 +674,10 @@ pub const ONNXParser = struct {
             converted_nodes += 1;
         }
 
-        std.log.info("📊 Node conversion summary:");
-        std.log.info("   Converted: {}/{}", .{ converted_nodes, onnx_model.graph.nodes.items.len });
+        std.log.info("📊 Node conversion summary:", .{});
+        std.log.info("   Converted: {d}/{d}", .{ converted_nodes, onnx_model.graph.nodes.items.len });
         if (skipped_nodes > 0) {
-            std.log.warn("   Skipped: {} unsupported/failed nodes", .{skipped_nodes});
+            std.log.warn("   Skipped: {d} unsupported/failed nodes", .{skipped_nodes});
         }
 
         std.log.info("✅ Conversion completed", .{});
