@@ -71,6 +71,12 @@ pub fn main() !void {
                 std.debug.print("❌ Error: Unknown argument\n");
                 std.process.exit(1);
             },
+            error.ModelNotLoaded => {
+                std.debug.print("❌ Error: Model not loaded\n");
+                std.debug.print("💡 Load a model first before running inference\n");
+                std.debug.print("📚 Use 'zig-ai-platform help' for more information\n");
+                std.process.exit(1);
+            },
             else => {
                 std.debug.print("❌ Error: {}\n", .{err});
                 std.process.exit(1);
@@ -94,7 +100,6 @@ fn handleSignal(sig: c_int) callconv(.C) void {
     }
 }
 
-/// Test the main CLI functionality
 test "main CLI functionality" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -110,7 +115,6 @@ test "main CLI functionality" {
     try std.testing.expect(parsed.command == .help);
 }
 
-/// Integration test for CLI commands
 test "CLI command integration" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();

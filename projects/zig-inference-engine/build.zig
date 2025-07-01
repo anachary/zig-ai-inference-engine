@@ -8,14 +8,14 @@ pub fn build(b: *std.Build) void {
     // Create the main library
     const lib = b.addStaticLibrary(.{
         .name = "zig-inference-engine",
-        .root_source_file = b.path("src/lib.zig"),
+        .root_source_file = .{ .path = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
 
     // Add common interfaces as a module
     const common_interfaces = b.addModule("common-interfaces", .{
-        .root_source_file = b.path("../../common/interfaces/tensor.zig"),
+        .root_source_file = .{ .path = "../../common/interfaces/tensor.zig" },
     });
     lib.root_module.addImport("common-interfaces", common_interfaces);
 
@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
 
     // Create a module for external use
     const inference_engine_module = b.addModule("zig-inference-engine", .{
-        .root_source_file = b.path("src/lib.zig"),
+        .root_source_file = .{ .path = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -178,7 +178,7 @@ pub fn build(b: *std.Build) void {
 
     // Integration tests (requires other modules)
     const integration_test_step = b.step("test-integration", "Run integration tests");
-    
+
     // Note: These would require zig-tensor-core and zig-onnx-parser to be available
     // For now, we'll create placeholder integration tests
     const integration_tests = b.addTest(.{
@@ -194,7 +194,7 @@ pub fn build(b: *std.Build) void {
 
     // Performance profiling
     const profile_step = b.step("profile", "Run performance profiling");
-    
+
     const profile_exe = b.addExecutable(.{
         .name = "inference-profiler",
         .root_source_file = b.path("tools/profiler.zig"),

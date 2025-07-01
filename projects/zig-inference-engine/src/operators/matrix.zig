@@ -32,7 +32,7 @@ pub const MatMul = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         if (inputs.len != 2 or outputs.len != 1) {
             return error.InvalidInputOutput;
         }
@@ -43,7 +43,7 @@ pub const MatMul = struct {
 
         const a_shape = a.shape();
         const b_shape = b.shape();
-        const c_shape = c.shape();
+        _ = c.shape(); // Suppress unused warning
 
         // Validate matrix multiplication dimensions
         if (a_shape.len < 2 or b_shape.len < 2) {
@@ -60,7 +60,7 @@ pub const MatMul = struct {
         }
 
         // Handle batch dimensions
-        const batch_size = calculateBatchSize(a_shape[0..a_shape.len-2]);
+        const batch_size = calculateBatchSize(a_shape[0 .. a_shape.len - 2]);
 
         switch (a.dtype()) {
             .f32 => {
@@ -79,7 +79,7 @@ pub const MatMul = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         if (input_shapes.len != 2) {
             return error.InvalidInputCount;
         }
@@ -101,11 +101,11 @@ pub const MatMul = struct {
         // Calculate output shape
         const m = a_shape[a_shape.len - 2];
         const n = b_shape[b_shape.len - 1];
-        
+
         // Handle batch dimensions
         const max_batch_dims = @max(a_shape.len - 2, b_shape.len - 2);
         var output_shape = try allocator.alloc(usize, max_batch_dims + 2);
-        
+
         // Copy batch dimensions (simplified - assumes compatible batch dims)
         for (0..max_batch_dims) |i| {
             if (i < a_shape.len - 2) {
@@ -114,7 +114,7 @@ pub const MatMul = struct {
                 output_shape[i] = 1;
             }
         }
-        
+
         output_shape[max_batch_dims] = m;
         output_shape[max_batch_dims + 1] = n;
 
@@ -148,7 +148,7 @@ pub const Gemm = struct {
         allocator: Allocator,
     ) anyerror!void {
         _ = allocator;
-        
+
         if (inputs.len < 2 or inputs.len > 3 or outputs.len != 1) {
             return error.InvalidInputOutput;
         }
@@ -194,7 +194,7 @@ pub const Gemm = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         if (input_shapes.len < 2 or input_shapes.len > 3) {
             return error.InvalidInputCount;
         }
@@ -244,7 +244,7 @@ pub const Transpose = struct {
         allocator: Allocator,
     ) anyerror!void {
         _ = allocator;
-        
+
         if (inputs.len != 1 or outputs.len != 1) {
             return error.InvalidInputOutput;
         }
@@ -375,11 +375,11 @@ fn gemmF32(
 ) !void {
     _ = trans_a;
     _ = trans_b;
-    
+
     const a_data = std.mem.bytesAsSlice(f32, a.data());
     const b_data = std.mem.bytesAsSlice(f32, b.data());
     const c_data = std.mem.bytesAsSlice(f32, c.data());
-    
+
     const bias_data = if (c_bias) |bias| std.mem.bytesAsSlice(f32, bias.data()) else null;
 
     // Simplified GEMM implementation (assumes no transpose for now)
@@ -389,12 +389,12 @@ fn gemmF32(
             for (0..k) |l| {
                 sum += a_data[i * k + l] * b_data[l * n + j];
             }
-            
+
             var result = alpha * sum;
             if (bias_data) |bias| {
                 result += beta * bias[i * n + j];
             }
-            
+
             c_data[i * n + j] = result;
         }
     }
@@ -404,12 +404,12 @@ fn transposeF32(a: *const TensorInterface, b: *const TensorInterface, perm: []co
     const a_data = std.mem.bytesAsSlice(f32, a.data());
     const b_data = std.mem.bytesAsSlice(f32, b.data());
     const a_shape = a.shape();
-    
+
     // Simplified transpose for 2D case
     if (a_shape.len == 2 and perm.len == 2 and perm[0] == 1 and perm[1] == 0) {
         const rows = a_shape[0];
         const cols = a_shape[1];
-        
+
         for (0..rows) |i| {
             for (0..cols) |j| {
                 b_data[j * rows + i] = a_data[i * cols + j];
@@ -422,11 +422,11 @@ fn transposeF32(a: *const TensorInterface, b: *const TensorInterface, perm: []co
             const src_indices = linearToMultiIndex(i, a_shape);
             var dst_indices = try std.heap.page_allocator.alloc(usize, src_indices.len);
             defer std.heap.page_allocator.free(dst_indices);
-            
+
             for (perm, 0..) |p, j| {
                 dst_indices[j] = src_indices[p];
             }
-            
+
             const dst_idx = multiIndexToLinear(dst_indices, b.shape());
             b_data[dst_idx] = a_data[i];
         }
@@ -434,12 +434,16 @@ fn transposeF32(a: *const TensorInterface, b: *const TensorInterface, perm: []co
 }
 
 fn transposeF16(a: *const TensorInterface, b: *const TensorInterface, perm: []const usize) !void {
-    _ = a; _ = b; _ = perm;
+    _ = a;
+    _ = b;
+    _ = perm;
     // Similar implementation for f16
 }
 
 fn transposeI32(a: *const TensorInterface, b: *const TensorInterface, perm: []const usize) !void {
-    _ = a; _ = b; _ = perm;
+    _ = a;
+    _ = b;
+    _ = perm;
     // Similar implementation for i32
 }
 
@@ -485,25 +489,25 @@ fn getDefaultPermutation(ndim: usize) []const usize {
 fn linearToMultiIndex(linear_idx: usize, shape: []const usize) []usize {
     var indices = std.heap.page_allocator.alloc(usize, shape.len) catch return &[_]usize{};
     var remaining = linear_idx;
-    
+
     for (0..shape.len) |i| {
         const dim_idx = shape.len - 1 - i;
         indices[dim_idx] = remaining % shape[dim_idx];
         remaining /= shape[dim_idx];
     }
-    
+
     return indices;
 }
 
 fn multiIndexToLinear(indices: []const usize, shape: []const usize) usize {
     var linear_idx: usize = 0;
     var stride: usize = 1;
-    
+
     for (0..shape.len) |i| {
         const dim_idx = shape.len - 1 - i;
         linear_idx += indices[dim_idx] * stride;
         stride *= shape[dim_idx];
     }
-    
+
     return linear_idx;
 }

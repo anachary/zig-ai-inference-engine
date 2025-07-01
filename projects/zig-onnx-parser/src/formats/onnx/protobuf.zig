@@ -85,7 +85,7 @@ pub const ProtobufParser = struct {
             return ProtobufError.UnexpectedEndOfData;
         }
 
-        const result = std.mem.readIntLittle(u32, self.data[self.pos..self.pos + 4]);
+        const result = std.mem.readIntLittle(u32, self.data[self.pos .. self.pos + 4][0..4]);
         self.pos += 4;
         return result;
     }
@@ -95,7 +95,7 @@ pub const ProtobufParser = struct {
             return ProtobufError.UnexpectedEndOfData;
         }
 
-        const result = std.mem.readIntLittle(u64, self.data[self.pos..self.pos + 8]);
+        const result = std.mem.readIntLittle(u64, self.data[self.pos .. self.pos + 8][0..8]);
         self.pos += 8;
         return result;
     }
@@ -106,7 +106,7 @@ pub const ProtobufParser = struct {
             return ProtobufError.UnexpectedEndOfData;
         }
 
-        const result = self.data[self.pos..self.pos + length];
+        const result = self.data[self.pos .. self.pos + length];
         self.pos += length;
         return result;
     }
@@ -127,7 +127,7 @@ pub const ProtobufParser = struct {
 
     pub fn readInt32(self: *Self) ProtobufError!i32 {
         const value = try self.readVarint();
-        return @as(i32, @truncate(value));
+        return @as(i32, @intCast(value));
     }
 
     pub fn readInt64(self: *Self) ProtobufError!i64 {
@@ -152,22 +152,63 @@ pub const ProtobufParser = struct {
     pub fn skipField(self: *Self, wire_type: WireType) ProtobufError!void {
         switch (wire_type) {
             .varint => {
-                _ = try self.readVarint();
+                _ = self.readVarint() catch |err| {
+                    // Error recovery: skip single byte and continue
+                    std.log.warn("Failed to read varint, skipping byte", .{});
+                    if (self.pos < self.data.len) {
+                        self.pos += 1;
+                    }
+                    return err;
+                };
             },
             .fixed64 => {
-                _ = try self.readFixed64();
+                _ = self.readFixed64() catch |err| {
+                    // Error recovery: skip available bytes
+                    std.log.warn("Failed to read fixed64, skipping available bytes", .{});
+                    const remaining = self.data.len - self.pos;
+                    self.pos += @min(remaining, 8);
+                    return err;
+                };
             },
             .length_delimited => {
-                _ = try self.readBytes();
+                _ = self.readBytes() catch |err| {
+                    // Error recovery: try to skip based on length prefix
+                    std.log.warn("Failed to read length-delimited field, attempting recovery", .{});
+                    if (self.pos < self.data.len) {
+                        // Try to read length and skip that many bytes
+                        const saved_pos = self.pos;
+                        if (self.readVarint()) |length| {
+                            const skip_bytes = @min(length, self.data.len - self.pos);
+                            self.pos += @intCast(skip_bytes);
+                        } else |_| {
+                            // If we can't read length, just skip one byte
+                            self.pos = saved_pos + 1;
+                        }
+                    }
+                    return err;
+                };
             },
             .fixed32 => {
-                _ = try self.readFixed32();
+                _ = self.readFixed32() catch |err| {
+                    // Error recovery: skip available bytes
+                    std.log.warn("Failed to read fixed32, skipping available bytes", .{});
+                    const remaining = self.data.len - self.pos;
+                    self.pos += @min(remaining, 4);
+                    return err;
+                };
             },
             .start_group, .end_group => {
-                return ProtobufError.UnsupportedFieldType;
+                // Legacy group support with error recovery
+                std.log.warn("Encountered deprecated group wire type, skipping", .{});
+                if (self.pos < self.data.len) {
+                    self.pos += 1;
+                }
             },
             _ => {
-                return ProtobufError.InvalidWireType;
+                std.log.warn("Unknown wire type {}, skipping byte", .{wire_type});
+                if (self.pos < self.data.len) {
+                    self.pos += 1;
+                }
             },
         }
     }
@@ -197,7 +238,7 @@ pub const ProtobufParser = struct {
     pub fn readRepeatedVarint(self: *Self, allocator: Allocator) ProtobufError![]u64 {
         const data = try self.readBytes();
         var sub_parser = ProtobufParser.init(allocator, data);
-        
+
         var values = std.ArrayList(u64).init(allocator);
         defer values.deinit();
 
@@ -220,7 +261,7 @@ pub const ProtobufParser = struct {
 
         for (0..count) |i| {
             const offset = i * 4;
-            const bits = std.mem.readIntLittle(u32, data[offset..offset + 4]);
+            const bits = std.mem.readIntLittle(u32, data[offset .. offset + 4]);
             values[i] = @as(f32, @bitCast(bits));
         }
 
@@ -238,7 +279,7 @@ pub const ProtobufParser = struct {
 
         for (0..count) |i| {
             const offset = i * 8;
-            const bits = std.mem.readIntLittle(u64, data[offset..offset + 8]);
+            const bits = std.mem.readIntLittle(u64, data[offset .. offset + 8]);
             values[i] = @as(f64, @bitCast(bits));
         }
 

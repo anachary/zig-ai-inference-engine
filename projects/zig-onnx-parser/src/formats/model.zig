@@ -11,10 +11,64 @@ pub const ModelFormat = enum {
     custom,
 
     pub fn fromPath(path: []const u8) ModelFormat {
-        if (std.mem.endsWith(u8, path, ".onnx")) return .onnx;
-        if (std.mem.endsWith(u8, path, ".onnx.txt")) return .onnx_text;
-        if (std.mem.endsWith(u8, path, ".tflite")) return .tensorflow_lite;
-        if (std.mem.endsWith(u8, path, ".pt") or std.mem.endsWith(u8, path, ".pth")) return .pytorch_jit;
+        std.log.info("🔍 Detecting format for: {s}", .{path});
+
+        if (std.mem.endsWith(u8, path, ".onnx")) {
+            std.log.info("✅ Detected ONNX format from extension", .{});
+            return .onnx;
+        }
+        if (std.mem.endsWith(u8, path, ".onnx.txt")) {
+            std.log.info("✅ Detected ONNX text format from extension", .{});
+            return .onnx_text;
+        }
+        if (std.mem.endsWith(u8, path, ".tflite")) {
+            std.log.info("✅ Detected TensorFlow Lite format from extension", .{});
+            return .tensorflow_lite;
+        }
+        if (std.mem.endsWith(u8, path, ".pt") or std.mem.endsWith(u8, path, ".pth")) {
+            std.log.info("✅ Detected PyTorch JIT format from extension", .{});
+            return .pytorch_jit;
+        }
+
+        std.log.warn("⚠️  Unknown format for {s}, defaulting to custom", .{path});
+        return .custom;
+    }
+
+    /// Enhanced format detection with content analysis
+    pub fn detectFormat(file_path: []const u8, data: []const u8) ModelFormat {
+        std.log.info("🔍 Detecting format for: {s}", .{file_path});
+        std.log.info("📊 File size: {d} bytes", .{data.len});
+
+        // First try extension-based detection (most reliable)
+        const ext_format = fromPath(file_path);
+        if (ext_format != .custom) {
+            return ext_format;
+        }
+
+        // Enhanced content-based detection for ONNX
+        if (data.len >= 8) {
+            // ONNX files are protobuf format, check for common protobuf patterns
+            // Field 1 (ir_version) is usually first in ONNX ModelProto
+            if ((data[0] == 0x08 and data[1] >= 0x01 and data[1] <= 0x10) or // varint field 1
+                (data[0] == 0x0A) or // length-delimited field 1
+                (data[0] == 0x12)) // length-delimited field 2 (graph)
+            {
+                std.log.info("✅ Detected ONNX format from protobuf content", .{});
+                return .onnx;
+            }
+
+            // Check for ONNX magic patterns in first few bytes
+            for (data[0..@min(data.len, 16)], 0..) |byte, i| {
+                _ = i;
+                // Look for typical ONNX protobuf field numbers (1-15 are common)
+                if (byte >= 0x08 and byte <= 0x7A and (byte & 0x07) <= 0x05) {
+                    std.log.info("✅ Detected potential ONNX format from protobuf patterns");
+                    return .onnx;
+                }
+            }
+        }
+
+        std.log.warn("⚠️  Unknown format, defaulting to custom");
         return .custom;
     }
 
@@ -126,7 +180,7 @@ pub const IOSpec = struct {
     /// Get total number of elements (returns null if dynamic)
     pub fn numel(self: *const IOSpec) ?usize {
         if (!self.isFullyDefined()) return null;
-        
+
         var total: usize = 1;
         for (self.shape) |dim| {
             total *= @as(usize, @intCast(dim));
@@ -165,13 +219,13 @@ pub const GraphNode = struct {
     pub fn deinit(self: *GraphNode, allocator: Allocator) void {
         allocator.free(self.name);
         allocator.free(self.op_type);
-        
+
         for (self.inputs) |input| allocator.free(input);
         allocator.free(self.inputs);
-        
+
         for (self.outputs) |output| allocator.free(output);
         allocator.free(self.outputs);
-        
+
         var attr_iter = self.attributes.iterator();
         while (attr_iter.next()) |entry| {
             switch (entry.value_ptr.*) {
@@ -209,10 +263,10 @@ pub const ComputationGraph = struct {
     pub fn deinit(self: *ComputationGraph) void {
         for (self.nodes.items) |*node| node.deinit(self.allocator);
         self.nodes.deinit();
-        
+
         for (self.inputs.items) |*input| input.deinit(self.allocator);
         self.inputs.deinit();
-        
+
         for (self.outputs.items) |*output| output.deinit(self.allocator);
         self.outputs.deinit();
     }
@@ -234,12 +288,12 @@ pub const ComputationGraph = struct {
         // Check that all node inputs are either graph inputs or outputs of other nodes
         var available_values = std.StringHashMap(void).init(self.allocator);
         defer available_values.deinit();
-        
+
         // Add graph inputs
         for (self.inputs.items) |input| {
             try available_values.put(input.name, {});
         }
-        
+
         // Check each node
         for (self.nodes.items) |node| {
             // Check inputs are available
@@ -249,13 +303,13 @@ pub const ComputationGraph = struct {
                     return error.MissingInput;
                 }
             }
-            
+
             // Add outputs to available values
             for (node.outputs) |output_name| {
                 try available_values.put(output_name, {});
             }
         }
-        
+
         // Check that all graph outputs are available
         for (self.outputs.items) |output| {
             if (!available_values.contains(output.name)) {
@@ -270,29 +324,29 @@ pub const ComputationGraph = struct {
         const node_count = self.nodes.items.len;
         var in_degree = try allocator.alloc(usize, node_count);
         defer allocator.free(in_degree);
-        
+
         var adjacency = try allocator.alloc(std.ArrayList(usize), node_count);
         defer {
             for (adjacency) |*list| list.deinit();
             allocator.free(adjacency);
         }
-        
+
         // Initialize
         for (0..node_count) |i| {
             in_degree[i] = 0;
             adjacency[i] = std.ArrayList(usize).init(allocator);
         }
-        
+
         // Build adjacency list and calculate in-degrees
         var name_to_index = std.StringHashMap(usize).init(allocator);
         defer name_to_index.deinit();
-        
+
         for (self.nodes.items, 0..) |node, i| {
             for (node.outputs) |output| {
                 try name_to_index.put(output, i);
             }
         }
-        
+
         for (self.nodes.items, 0..) |node, i| {
             for (node.inputs) |input| {
                 if (name_to_index.get(input)) |producer_idx| {
@@ -301,24 +355,24 @@ pub const ComputationGraph = struct {
                 }
             }
         }
-        
+
         // Kahn's algorithm
         var queue = std.ArrayList(usize).init(allocator);
         defer queue.deinit();
         var result = std.ArrayList(usize).init(allocator);
         defer result.deinit();
-        
+
         // Add nodes with no incoming edges
         for (0..node_count) |i| {
             if (in_degree[i] == 0) {
                 try queue.append(i);
             }
         }
-        
+
         while (queue.items.len > 0) {
             const current = queue.orderedRemove(0);
             try result.append(current);
-            
+
             for (adjacency[current].items) |neighbor| {
                 in_degree[neighbor] -= 1;
                 if (in_degree[neighbor] == 0) {
@@ -326,11 +380,11 @@ pub const ComputationGraph = struct {
                 }
             }
         }
-        
+
         if (result.items.len != node_count) {
             return error.CyclicGraph;
         }
-        
+
         return result.toOwnedSlice();
     }
 };
@@ -372,12 +426,12 @@ pub const Model = struct {
     /// Validate the entire model
     pub fn validate(self: *const Model) !void {
         try self.graph.validate();
-        
+
         // Additional model-level validations
         if (self.graph.inputs.items.len == 0) {
             return error.NoInputs;
         }
-        
+
         if (self.graph.outputs.items.len == 0) {
             return error.NoOutputs;
         }
@@ -387,12 +441,12 @@ pub const Model = struct {
     pub fn getStats(self: *const Model) ModelStats {
         var op_counts = std.StringHashMap(usize).init(self.allocator);
         defer op_counts.deinit();
-        
+
         for (self.graph.nodes.items) |node| {
             const count = op_counts.get(node.op_type) orelse 0;
             op_counts.put(node.op_type, count + 1) catch {};
         }
-        
+
         return ModelStats{
             .node_count = self.graph.nodes.items.len,
             .input_count = self.graph.inputs.items.len,
@@ -410,7 +464,7 @@ pub const ModelStats = struct {
     output_count: usize,
     parameter_count: usize,
     model_size_bytes: usize,
-    
+
     pub fn print(self: *const ModelStats) void {
         std.log.info("=== Model Statistics ===");
         std.log.info("Nodes: {}", .{self.node_count});

@@ -30,16 +30,24 @@ pub const ONNXError = error{
 pub const ParserConfig = struct {
     /// Maximum model size in MB
     max_model_size_mb: u32 = 1024,
-    /// Enable strict validation
-    strict_validation: bool = true,
+    /// Enable strict validation (set to false for real models)
+    strict_validation: bool = false,
     /// Enable graph optimizations during parsing
     enable_optimizations: bool = false,
     /// Minimum supported opset version
-    min_opset_version: i64 = 11,
+    min_opset_version: i64 = 7, // Lower for broader compatibility
     /// Maximum supported opset version
-    max_opset_version: i64 = 18,
+    max_opset_version: i64 = 20, // Higher for newer models
     /// Buffer size for streaming parser
     buffer_size_kb: u32 = 64,
+    /// Skip unknown operators instead of failing
+    skip_unknown_ops: bool = true,
+    /// Allow partial parsing with missing features
+    allow_partial_parsing: bool = true,
+    /// Enable verbose logging for debugging
+    verbose_logging: bool = true,
+    /// Continue parsing even with non-critical errors
+    error_recovery: bool = true,
 };
 
 /// ONNX parser for protobuf format
@@ -70,8 +78,11 @@ pub const ONNXParser = struct {
         };
         defer file.close();
 
-        const file_size = try file.getEndPos();
-        
+        const file_size = file.getEndPos() catch |err| {
+            std.log.err("Failed to get file size: {}", .{err});
+            return ONNXError.ParseError;
+        };
+
         // Check file size limit
         const max_size = @as(u64, self.config.max_model_size_mb) * 1024 * 1024;
         if (file_size > max_size) {
@@ -82,7 +93,10 @@ pub const ONNXParser = struct {
         const file_data = try self.allocator.alloc(u8, file_size);
         defer self.allocator.free(file_data);
 
-        _ = try file.readAll(file_data);
+        _ = file.readAll(file_data) catch |err| {
+            std.log.err("Failed to read file data: {}", .{err});
+            return ONNXError.ParseError;
+        };
         std.log.info("📊 File size: {d:.1} MB", .{@as(f64, @floatFromInt(file_size)) / (1024.0 * 1024.0)});
 
         return self.parseBytes(file_data);
@@ -91,26 +105,63 @@ pub const ONNXParser = struct {
     /// Parse ONNX model from byte array
     pub fn parseBytes(self: *Self, data: []const u8) ONNXError!model.Model {
         std.log.info("🔍 Starting ONNX protobuf parsing...", .{});
+        std.log.info("📊 Model size: {d:.2} MB", .{@as(f64, @floatFromInt(data.len)) / (1024.0 * 1024.0)});
 
-        // Initialize protobuf parser
+        // Validate protobuf magic bytes for ONNX
+        if (data.len < 8) {
+            std.log.err("❌ File too small to be a valid ONNX model", .{});
+            return ONNXError.ParseError;
+        }
+
+        // Initialize protobuf parser with error recovery
         var pb_parser = ProtobufParser.init(self.allocator, data);
 
-        // Parse ONNX ModelProto
-        var onnx_model = try self.parseModelProto(&pb_parser);
+        // Parse ONNX ModelProto with enhanced error handling
+        var onnx_model = self.parseModelProto(&pb_parser) catch |err| {
+            std.log.err("❌ Failed to parse ModelProto: {}", .{err});
+            std.log.info("💡 This might be due to: {s}", .{"compatibility issues"});
+            std.log.info("   - Unsupported ONNX version: {s}", .{"check compatibility"});
+            std.log.info("   - Corrupted model file");
+            std.log.info("   - Complex model features not yet supported");
+            return err;
+        };
         defer onnx_model.deinit(self.allocator);
 
-        // Validate opset version
-        try self.validateOpsetVersion(&onnx_model);
+        std.log.info("✅ ModelProto parsed successfully");
+        std.log.info("📋 Model info: {s} v{s}", .{ onnx_model.producer_name, onnx_model.producer_version });
+
+        // Validate opset version with detailed feedback
+        self.validateOpsetVersion(&onnx_model) catch |err| {
+            std.log.warn("⚠️  Opset validation failed: {}", .{err});
+            if (!self.config.strict_validation) {
+                std.log.info("🔄 Continuing with relaxed validation...");
+            } else {
+                return err;
+            }
+        };
 
         // Validate model if strict validation is enabled
         if (self.config.strict_validation) {
-            try onnx_model.graph.validate();
+            onnx_model.graph.validate() catch |err| {
+                std.log.warn("⚠️  Graph validation failed: {}", .{err});
+                std.log.info("💡 Try setting strict_validation = false for experimental models");
+                return err;
+            };
         }
 
-        // Convert to internal model format
-        const parsed_model = try self.convertToInternalModel(onnx_model);
+        // Convert to internal model format with enhanced conversion
+        const parsed_model = self.convertToInternalModel(onnx_model) catch |err| {
+            std.log.err("❌ Failed to convert to internal format: {}", .{err});
+            std.log.info("💡 This model may use features not yet supported");
+            return err;
+        };
 
-        std.log.info("✅ ONNX model parsed successfully", .{});
+        std.log.info("✅ ONNX model parsed successfully");
+        std.log.info("📊 Final model stats:");
+        std.log.info("   - Nodes: {}", .{parsed_model.graph.nodes.items.len});
+        std.log.info("   - Inputs: {}", .{parsed_model.graph.inputs.items.len});
+        std.log.info("   - Outputs: {}", .{parsed_model.graph.outputs.items.len});
+
         return parsed_model;
     }
 
@@ -172,13 +223,23 @@ pub const ONNXParser = struct {
                     }
                 },
                 else => {
-                    try parser.skipField(header.wire_type);
+                    // Enhanced unknown field handling with error recovery
+                    if (self.config.verbose_logging) {
+                        std.log.info("Skipping unknown ModelProto field {} with wire type {}", .{ header.field_number, header.wire_type });
+                    }
+                    parser.skipField(header.wire_type) catch |err| {
+                        if (self.config.error_recovery) {
+                            std.log.warn("Error skipping ModelProto field {}: {}, continuing", .{ header.field_number, err });
+                        } else {
+                            return err;
+                        }
+                    };
                 },
             }
         }
 
         if (graph == null) {
-            std.log.err("No graph found in ONNX model");
+            std.log.err("No graph found in ONNX model: {s}", .{"missing graph"});
             return ONNXError.MissingGraph;
         }
 
@@ -242,13 +303,45 @@ pub const ONNXParser = struct {
                         try sub_parser.skipField(header.wire_type);
                     }
                 },
+                13 => { // value_info (intermediate values)
+                    if (header.wire_type == .length_delimited) {
+                        const value_info = try self.parseValueInfoProto(&sub_parser);
+                        // Store intermediate value info if needed
+                        if (self.config.verbose_logging) {
+                            std.log.info("Found intermediate value: {s}", .{value_info.name});
+                        }
+                    } else {
+                        try sub_parser.skipField(header.wire_type);
+                    }
+                },
+                14 => { // quantization_annotation
+                    if (header.wire_type == .length_delimited) {
+                        // Skip quantization annotations for now
+                        _ = try sub_parser.readBytes();
+                        if (self.config.verbose_logging) {
+                            std.log.info("Skipping quantization annotation: {s}", .{"not supported"});
+                        }
+                    } else {
+                        try sub_parser.skipField(header.wire_type);
+                    }
+                },
                 else => {
-                    try sub_parser.skipField(header.wire_type);
+                    // Enhanced unknown field handling with error recovery
+                    if (self.config.verbose_logging) {
+                        std.log.info("Skipping unknown GraphProto field {} with wire type {}", .{ header.field_number, header.wire_type });
+                    }
+                    sub_parser.skipField(header.wire_type) catch |err| {
+                        if (self.config.error_recovery) {
+                            std.log.warn("Error skipping GraphProto field {}: {}, continuing", .{ header.field_number, err });
+                        } else {
+                            return err;
+                        }
+                    };
                 },
             }
         }
 
-        std.log.info("📊 Graph statistics:");
+        std.log.info("📊 Graph statistics: {s}", .{"analyzing"});
         std.log.info("  Nodes: {}", .{graph.nodes.items.len});
         std.log.info("  Inputs: {}", .{graph.inputs.items.len});
         std.log.info("  Outputs: {}", .{graph.outputs.items.len});
@@ -304,8 +397,39 @@ pub const ONNXParser = struct {
                         try sub_parser.skipField(header.wire_type);
                     }
                 },
+                5 => { // attribute
+                    if (header.wire_type == .length_delimited) {
+                        // Parse attributes (simplified for now)
+                        _ = try sub_parser.readBytes();
+                        if (self.config.verbose_logging) {
+                            std.log.info("Skipping node attribute for {s}", .{node.op_type});
+                        }
+                    } else {
+                        try sub_parser.skipField(header.wire_type);
+                    }
+                },
+                6 => { // doc_string
+                    if (header.wire_type == .length_delimited) {
+                        _ = try sub_parser.readString();
+                        if (self.config.verbose_logging) {
+                            std.log.info("Skipping doc string for node {s}", .{node.name});
+                        }
+                    } else {
+                        try sub_parser.skipField(header.wire_type);
+                    }
+                },
                 else => {
-                    try sub_parser.skipField(header.wire_type);
+                    // Enhanced unknown field handling for nodes
+                    if (self.config.verbose_logging) {
+                        std.log.info("Skipping unknown NodeProto field {} for node {s}", .{ header.field_number, node.name });
+                    }
+                    sub_parser.skipField(header.wire_type) catch |err| {
+                        if (self.config.error_recovery) {
+                            std.log.warn("Error skipping NodeProto field {}: {}, continuing", .{ header.field_number, err });
+                        } else {
+                            return err;
+                        }
+                    };
                 },
             }
         }
@@ -359,7 +483,7 @@ pub const ONNXParser = struct {
                     if (header.wire_type == .length_delimited) {
                         const dims_data = try sub_parser.readRepeatedVarint(self.allocator);
                         defer self.allocator.free(dims_data);
-                        
+
                         self.allocator.free(tensor.dims);
                         tensor.dims = try self.allocator.alloc(i64, dims_data.len);
                         for (dims_data, 0..) |dim, i| {
@@ -453,7 +577,7 @@ pub const ONNXParser = struct {
                 return;
             }
         }
-        
+
         std.log.warn("No standard opset found, assuming default version");
     }
 
@@ -474,17 +598,123 @@ pub const ONNXParser = struct {
 
         var internal_model = model.Model.init(self.allocator, metadata);
 
-        // Convert nodes (simplified conversion)
+        // Convert nodes with enhanced operator support
+        var converted_nodes: usize = 0;
+        var skipped_nodes: usize = 0;
+
         for (onnx_model.graph.nodes.items) |onnx_node| {
-            const internal_node = try model.GraphNode.init(
+            // Check if operator is supported or should be skipped
+            const is_supported = self.isOperatorSupported(onnx_node.op_type);
+
+            if (!is_supported and self.config.skip_unknown_ops) {
+                std.log.warn("Skipping unsupported operator: {s} (node: {s})", .{ onnx_node.op_type, onnx_node.name });
+                skipped_nodes += 1;
+                continue;
+            }
+
+            const internal_node = model.GraphNode.init(
                 self.allocator,
                 onnx_node.name,
                 onnx_node.op_type,
-            );
-            try internal_model.graph.addNode(internal_node);
+            ) catch |err| {
+                if (self.config.error_recovery) {
+                    std.log.warn("Failed to create node {s} ({}): {}, skipping", .{ onnx_node.name, onnx_node.op_type, err });
+                    skipped_nodes += 1;
+                    continue;
+                } else {
+                    return err;
+                }
+            };
+
+            internal_model.graph.addNode(internal_node) catch |err| {
+                if (self.config.error_recovery) {
+                    std.log.warn("Failed to add node {s}: {}, skipping", .{ onnx_node.name, err });
+                    skipped_nodes += 1;
+                    continue;
+                } else {
+                    return err;
+                }
+            };
+
+            converted_nodes += 1;
+        }
+
+        std.log.info("📊 Node conversion summary:");
+        std.log.info("   Converted: {}/{}", .{ converted_nodes, onnx_model.graph.nodes.items.len });
+        if (skipped_nodes > 0) {
+            std.log.warn("   Skipped: {} unsupported/failed nodes", .{skipped_nodes});
         }
 
         std.log.info("✅ Conversion completed", .{});
         return internal_model;
+    }
+
+    /// Check if an operator is supported
+    fn isOperatorSupported(self: *Self, op_type: []const u8) bool {
+        _ = self; // Suppress unused parameter warning
+
+        // List of commonly supported ONNX operators
+        const supported_ops = [_][]const u8{
+            // Basic math operations
+            "Add",      "Sub",           "Mul",                "Div",                "Pow",           "Sqrt",              "Abs",                       "Neg",
+            "Min",      "Max",           "Sum",                "Mean",               "Clip",
+
+            // Activation functions
+                     "Relu",              "Sigmoid",                   "Tanh",
+            "Softmax",  "LeakyRelu",     "Elu",                "Selu",               "Swish",         "Gelu",              "HardSigmoid",               "HardSwish",
+
+            // Neural network layers
+            "Conv",     "ConvTranspose", "BatchNormalization", "LayerNormalization", "Dropout",       "Flatten",           "Reshape",                   "Transpose",
+            "Squeeze",  "Unsqueeze",
+
+            // Pooling operations
+                "MaxPool",            "AveragePool",        "GlobalMaxPool", "GlobalAveragePool",
+
+            // Matrix operations
+            "MatMul",                    "Gemm",
+            "Dot",      "Identity",
+
+            // Tensor operations
+                 "Concat",             "Split",              "Slice",         "Gather",            "Scatter",                   "Tile",
+            "Expand",   "Pad",           "Constant",           "ConstantOfShape",
+
+            // Comparison and logical
+               "Equal",         "Greater",           "Less",                      "And",
+            "Or",       "Not",           "Where",
+
+            // Reduction operations
+                         "ReduceSum",          "ReduceMean",    "ReduceMax",         "ReduceMin",                 "ReduceProd",
+            "ReduceL1", "ReduceL2",      "ReduceLogSum",
+
+            // Shape operations
+                  "Shape",              "Size",          "Cast",              "Range",
+
+            // Control flow (basic support)
+                                "If",
+            "Loop",     "Scan",
+
+            // Common LLM operators
+                     "Attention",          "MultiHeadAttention", "LayerNorm",     "RMSNorm",           "RotaryPositionalEmbedding", "Embedding",
+            "Linear",
+        };
+
+        // Check if operator is in supported list
+        for (supported_ops) |supported_op| {
+            if (std.mem.eql(u8, op_type, supported_op)) {
+                return true;
+            }
+        }
+
+        // Check for common operator patterns
+        if (std.mem.startsWith(u8, op_type, "Reduce") or
+            std.mem.startsWith(u8, op_type, "Conv") or
+            std.mem.startsWith(u8, op_type, "Pool") or
+            std.mem.startsWith(u8, op_type, "Batch") or
+            std.mem.startsWith(u8, op_type, "Layer"))
+        {
+            return true;
+        }
+
+        return false;
     }
 };

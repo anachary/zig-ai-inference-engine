@@ -4,6 +4,7 @@ const Mutex = std.Thread.Mutex;
 
 // Import dependencies
 const inference_engine = @import("zig-inference-engine");
+const onnx_parser = @import("zig-onnx-parser");
 
 /// Model configuration
 pub const ModelConfig = struct {
@@ -173,10 +174,27 @@ pub const ModelManager = struct {
         
         const load_start = std.time.nanoTimestamp();
         
-        // Load model through inference engine (simplified)
-        // In a real implementation, this would use zig-onnx-parser
-        const model_ptr = try self.allocator.create(u8); // Placeholder
-        const model_interface = createDummyModelInterface(); // Placeholder
+        // Load model through ONNX parser
+        std.log.info("🔍 Loading ONNX model: {s}", .{path});
+
+        // Initialize ONNX parser
+        const onnx_parser = @import("zig-onnx-parser");
+        var parser = onnx_parser.Parser.init(self.allocator);
+
+        // Parse the ONNX model
+        const parsed_model = parser.parseFile(path) catch |err| {
+            std.log.err("❌ Failed to parse ONNX model: {}", .{err});
+            model_info.status = .error;
+            model_info.error_message = try self.allocator.dupe(u8, @errorName(err));
+            return ModelManagerError.ModelLoadFailed;
+        };
+
+        std.log.info("✅ ONNX model parsed successfully");
+
+        // Create model interface for the parsed model
+        const model_ptr = try self.allocator.create(@TypeOf(parsed_model));
+        model_ptr.* = parsed_model;
+        const model_interface = createONNXModelInterface();
         
         // Load model into inference engine
         self.inference_engine.loadModel(model_ptr, model_interface) catch |err| {
@@ -367,7 +385,18 @@ pub const ModelManager = struct {
     }
 };
 
-/// Create a dummy model interface for testing
+/// Create a proper ONNX model interface
+fn createONNXModelInterface() inference_engine.ModelInterface {
+    return inference_engine.ModelInterface{
+        .ctx = undefined,
+        .impl = .{
+            .validateFn = onnxValidate,
+            .freeFn = onnxFree,
+        },
+    };
+}
+
+/// Create a dummy model interface for testing (kept for backward compatibility)
 fn createDummyModelInterface() inference_engine.ModelInterface {
     // This is a placeholder implementation
     // In a real system, this would come from zig-onnx-parser
@@ -378,6 +407,26 @@ fn createDummyModelInterface() inference_engine.ModelInterface {
             .freeFn = dummyFree,
         },
     };
+}
+
+fn onnxValidate(ctx: *anyopaque, model: *anyopaque) !void {
+    _ = ctx;
+    const onnx_parser = @import("zig-onnx-parser");
+    const parsed_model = @as(*onnx_parser.Model, @ptrCast(@alignCast(model)));
+
+    // Validate the ONNX model
+    try parsed_model.validate();
+    std.log.info("✅ ONNX model validation successful");
+}
+
+fn onnxFree(ctx: *anyopaque, model: *anyopaque) void {
+    _ = ctx;
+    const onnx_parser = @import("zig-onnx-parser");
+    const parsed_model = @as(*onnx_parser.Model, @ptrCast(@alignCast(model)));
+
+    // Free the ONNX model
+    parsed_model.deinit();
+    std.log.info("🗑️ ONNX model freed");
 }
 
 fn dummyValidate(ctx: *anyopaque, model: *anyopaque) !void {

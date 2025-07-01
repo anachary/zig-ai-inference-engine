@@ -8,14 +8,14 @@ pub fn build(b: *std.Build) void {
     // Create the main library
     const lib = b.addStaticLibrary(.{
         .name = "zig-model-server",
-        .root_source_file = b.path("src/lib.zig"),
+        .root_source_file = .{ .path = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
 
     // Add dependencies
     const inference_engine = b.addModule("zig-inference-engine", .{
-        .root_source_file = b.path("../zig-inference-engine/src/lib.zig"),
+        .root_source_file = .{ .path = "../zig-inference-engine/src/lib.zig" },
     });
     lib.root_module.addImport("zig-inference-engine", inference_engine);
 
@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
 
     // Create a module for external use
     const model_server_module = b.addModule("zig-model-server", .{
-        .root_source_file = b.path("src/lib.zig"),
+        .root_source_file = .{ .path = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) void {
     // CLI executable
     const cli_exe = b.addExecutable(.{
         .name = "zig-model-server",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -46,7 +46,7 @@ pub fn build(b: *std.Build) void {
 
     // Unit tests
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/lib.zig"),
+        .root_source_file = .{ .path = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -58,7 +58,7 @@ pub fn build(b: *std.Build) void {
 
     // HTTP server tests
     const http_tests = b.addTest(.{
-        .root_source_file = b.path("src/http/server.zig"),
+        .root_source_file = .{ .path = "src/http/server.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -70,7 +70,7 @@ pub fn build(b: *std.Build) void {
 
     // CLI tests
     const cli_tests = b.addTest(.{
-        .root_source_file = b.path("src/cli/cli.zig"),
+        .root_source_file = .{ .path = "src/cli/cli.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) void {
 
     // Model manager tests
     const model_tests = b.addTest(.{
-        .root_source_file = b.path("src/models/manager.zig"),
+        .root_source_file = .{ .path = "src/models/manager.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -105,7 +105,7 @@ pub fn build(b: *std.Build) void {
     // Basic HTTP server example
     const basic_server_example = b.addExecutable(.{
         .name = "basic-server",
-        .root_source_file = b.path("examples/basic_server.zig"),
+        .root_source_file = .{ .path = "examples/basic_server.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -118,7 +118,7 @@ pub fn build(b: *std.Build) void {
     // CLI usage example
     const cli_example = b.addExecutable(.{
         .name = "cli-example",
-        .root_source_file = b.path("examples/cli_usage.zig"),
+        .root_source_file = .{ .path = "examples/cli_usage.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -131,7 +131,7 @@ pub fn build(b: *std.Build) void {
     // Model management example
     const model_example = b.addExecutable(.{
         .name = "model-management",
-        .root_source_file = b.path("examples/model_management.zig"),
+        .root_source_file = .{ .path = "examples/model_management.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -144,7 +144,7 @@ pub fn build(b: *std.Build) void {
     // Chat interface example
     const chat_example = b.addExecutable(.{
         .name = "chat-interface",
-        .root_source_file = b.path("examples/chat_interface.zig"),
+        .root_source_file = .{ .path = "examples/chat_interface.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -159,7 +159,7 @@ pub fn build(b: *std.Build) void {
 
     const http_benchmark = b.addExecutable(.{
         .name = "http-benchmark",
-        .root_source_file = b.path("benchmarks/http_benchmark.zig"),
+        .root_source_file = .{ .path = "benchmarks/http_benchmark.zig" },
         .target = target,
         .optimize = .ReleaseFast,
     });
@@ -171,7 +171,7 @@ pub fn build(b: *std.Build) void {
 
     const model_benchmark = b.addExecutable(.{
         .name = "model-benchmark",
-        .root_source_file = b.path("benchmarks/model_benchmark.zig"),
+        .root_source_file = .{ .path = "benchmarks/model_benchmark.zig" },
         .target = target,
         .optimize = .ReleaseFast,
     });
@@ -194,9 +194,9 @@ pub fn build(b: *std.Build) void {
 
     // Integration tests
     const integration_test_step = b.step("test-integration", "Run integration tests");
-    
+
     const integration_tests = b.addTest(.{
-        .root_source_file = b.path("tests/integration_test.zig"),
+        .root_source_file = .{ .path = "tests/integration_test.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -208,10 +208,10 @@ pub fn build(b: *std.Build) void {
 
     // Load tests
     const load_test_step = b.step("test-load", "Run load tests");
-    
+
     const load_tests = b.addExecutable(.{
         .name = "load-test",
-        .root_source_file = b.path("tests/load_test.zig"),
+        .root_source_file = .{ .path = "tests/load_test.zig" },
         .target = target,
         .optimize = .ReleaseFast,
     });
@@ -272,7 +272,8 @@ pub fn build(b: *std.Build) void {
 
     // Help step
     const help_step = b.step("help", "Show available build commands");
-    const help_cmd = b.addSystemCommand(&[_][]const u8{ "echo", 
+    const help_cmd = b.addSystemCommand(&[_][]const u8{
+        "echo",
         \\Available commands:
         \\  zig build                 - Build library
         \\  zig build cli             - Build CLI executable
