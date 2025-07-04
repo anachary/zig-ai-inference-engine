@@ -192,8 +192,18 @@ Each component follows strict SOLID principles:
 - 90%+ GPU utilization
 - Sub-linear memory scaling
 
-## 🔍 Technical Deep-Dive Resources
+## 📚 Documentation
 
+### 🚀 Deployment Guides
+- [**Massive LLM Deployment Guide**](docs/MASSIVE_LLM_DEPLOYMENT_GUIDE.md) - Complete guide for deploying 175B+ parameter models on AKS
+- [**Quick Start Guide**](docs/QUICK_START_LLM_DEPLOYMENT.md) - Deploy LLM on AKS in 30 minutes
+- [Distributed Deployment Guide](docs/DISTRIBUTED_DEPLOYMENT_GUIDE.md) - Comprehensive deployment instructions
+
+### 🔧 Operations & Optimization
+- [**LLM Troubleshooting Guide**](docs/LLM_TROUBLESHOOTING_GUIDE.md) - Diagnose and resolve common deployment issues
+- [**Performance Optimization Guide**](docs/LLM_PERFORMANCE_OPTIMIZATION.md) - Optimize inference performance and reduce costs
+
+### 🔍 Technical Deep-Dive Resources
 - [Architecture Design](docs/ARCHITECTURE_DESIGN.md)
 - [Memory Management Guide](docs/MEMORY_ALLOCATION_GUIDE.md)
 - [GPU Architecture](docs/GPU_ARCHITECTURE.md)

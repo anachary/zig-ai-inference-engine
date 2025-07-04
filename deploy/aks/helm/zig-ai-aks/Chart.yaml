@@ -1,12 +1,12 @@
 apiVersion: v2
-name: zig-ai
-description: A Helm chart for Zig AI Distributed Inference Engine
+name: zig-ai-aks
+description: A Helm chart for Zig AI Distributed LLM Inference on Azure Kubernetes Service
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
-home: https://github.com/anachary/zig-ai-inference-engine
+home: https://github.com/anachary/zig-ai-platform
 sources:
-  - https://github.com/anachary/zig-ai-inference-engine
+  - https://github.com/anachary/zig-ai-platform
 maintainers:
   - name: Zig AI Team
     email: support@zig-ai.com
@@ -16,6 +16,10 @@ keywords:
   - distributed
   - zig
   - machine-learning
+  - aks
+  - azure
+  - kubernetes
+  - llm
 annotations:
   category: AI/ML
 dependencies:

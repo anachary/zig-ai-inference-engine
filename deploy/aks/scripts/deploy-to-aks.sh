@@ -18,7 +18,7 @@ CLUSTER_NAME="${CLUSTER_NAME:-zig-ai-aks}"
 LOCATION="${LOCATION:-eastus}"
 ACR_NAME="${ACR_NAME:-zigairegistry}"
 NAMESPACE="${NAMESPACE:-zig-ai}"
-HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-zig-ai}"
+HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-zig-ai-aks}"
 
 # Functions
 log_info() {
@@ -224,7 +224,7 @@ deploy_with_helm() {
     ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query loginServer --output tsv)
     
     # Deploy with Helm
-    helm upgrade --install "$HELM_RELEASE_NAME" ./deploy/aks/helm/zig-ai \
+    helm upgrade --install "$HELM_RELEASE_NAME" ./deploy/aks/helm/zig-ai-aks \
         --namespace "$NAMESPACE" \
         --create-namespace \
         --values deploy/aks/values-production.yaml \

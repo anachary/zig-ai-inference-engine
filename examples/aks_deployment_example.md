@@ -170,7 +170,7 @@ docker push $ACR_LOGIN_SERVER/zig-ai/shard:v1.0
 kubectl create namespace zig-ai
 
 # Deploy with Helm
-helm install zig-ai ./deploy/aks/helm/zig-ai \
+helm install zig-ai-aks ./deploy/aks/helm/zig-ai-aks \
   --namespace zig-ai \
   --set global.imageRegistry=$ACR_LOGIN_SERVER \
   --set coordinator.replicas=1 \
@@ -376,7 +376,7 @@ kubectl exec -it <coordinator-pod> -n zig-ai -- ping <shard-pod-ip>
 
 ```bash
 # Delete application
-helm uninstall zig-ai -n zig-ai
+helm uninstall zig-ai-aks -n zig-ai
 
 # Delete namespace
 kubectl delete namespace zig-ai

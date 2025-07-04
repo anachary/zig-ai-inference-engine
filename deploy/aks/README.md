@@ -114,11 +114,11 @@ docker push $ACR_NAME.azurecr.io/zig-ai/shard:latest
 
 ```bash
 # Add custom Helm repository (if available)
-helm repo add zig-ai ./deploy/aks/helm/zig-ai
+helm repo add zig-ai-aks ./deploy/aks/helm/zig-ai-aks
 helm repo update
 
 # Install with custom values
-helm install zig-ai zig-ai/zig-ai \
+helm install zig-ai-aks zig-ai-aks/zig-ai-aks \
   --namespace zig-ai \
   --create-namespace \
   --values deploy/aks/values-production.yaml \
@@ -474,7 +474,7 @@ kubectl apply -f deploy/aks/storage.yaml
 kubectl apply -f deploy/aks/secrets.yaml
 
 # Deploy application
-helm upgrade --install zig-ai ./deploy/aks/helm/zig-ai \
+helm upgrade --install zig-ai-aks ./deploy/aks/helm/zig-ai-aks \
   --namespace zig-ai \
   --values deploy/aks/values-production.yaml \
   --wait --timeout=10m
