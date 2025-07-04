@@ -6,10 +6,10 @@ Optimized for edge devices with limited resources
 
 import os
 import time
-import asyncio
 import logging
 from typing import Dict, Any, Optional
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -18,7 +18,7 @@ from pydantic import BaseModel
 import psutil
 import yaml
 
-from iot_engine import IoTInferenceEngine
+from zig_ai_bindings import IoTInferenceEngine, ZigAIError
 from iot_telemetry import IoTTelemetry
 from iot_monitor import IoTMonitor
 
@@ -52,11 +52,73 @@ class HealthResponse(BaseModel):
     model_loaded: bool
     inference_count: int
 
-# Global variables
+# Global components
+inference_engine: Optional[IoTInferenceEngine] = None
+telemetry: Optional[IoTTelemetry] = None
+monitor: Optional[IoTMonitor] = None
+start_time = time.time()
+inference_count = 0
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan"""
+    global inference_engine, telemetry, monitor
+
+    logger.info("🚀 Starting Zig AI IoT Inference Server")
+
+    # Load configuration
+    config = load_config()
+    logger.info(f"📋 Configuration loaded: {config['device']['type']} device")
+
+    # Initialize inference engine
+    try:
+        inference_engine = IoTInferenceEngine(config['model']['path'], config)
+        logger.info("✅ Inference engine initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize inference engine: {e}")
+        raise
+
+    # Initialize telemetry (if enabled)
+    if config['telemetry']['enabled']:
+        try:
+            telemetry = IoTTelemetry(config)
+            await telemetry.start()
+            logger.info("📊 Telemetry enabled")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize telemetry: {e}")
+
+    # Initialize monitoring
+    try:
+        monitor = IoTMonitor(config)
+        await monitor.start()
+        logger.info("🔍 Monitoring started")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize monitoring: {e}")
+
+    logger.info("🎉 IoT Inference Server ready!")
+
+    yield
+
+    # Cleanup
+    logger.info("🛑 Shutting down Zig AI IoT Inference Server")
+
+    if monitor:
+        await monitor.stop()
+
+    if telemetry:
+        await telemetry.stop()
+
+    if inference_engine:
+        del inference_engine
+
+    logger.info("👋 Shutdown complete")
+
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="Zig AI IoT Inference Server",
     description="Optimized AI inference for edge devices",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -67,13 +129,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Global components
-inference_engine: Optional[IoTInferenceEngine] = None
-telemetry: Optional[IoTTelemetry] = None
-monitor: Optional[IoTMonitor] = None
-start_time = time.time()
-inference_count = 0
 
 def load_config() -> Dict[str, Any]:
     """Load configuration from file or environment variables"""
@@ -128,62 +183,7 @@ def get_device_temperature() -> Optional[float]:
             pass
     return None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize components on startup"""
-    global inference_engine, telemetry, monitor
-    
-    logger.info("🚀 Starting Zig AI IoT Inference Server")
-    
-    # Load configuration
-    config = load_config()
-    logger.info(f"📋 Configuration loaded: {config['device']['type']} device")
-    
-    # Initialize inference engine
-    try:
-        inference_engine = IoTInferenceEngine(config)
-        await inference_engine.initialize()
-        logger.info("✅ Inference engine initialized")
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize inference engine: {e}")
-        raise
-    
-    # Initialize telemetry (if enabled)
-    if config['telemetry']['enabled']:
-        try:
-            telemetry = IoTTelemetry(config)
-            await telemetry.start()
-            logger.info("📊 Telemetry enabled")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to initialize telemetry: {e}")
-    
-    # Initialize monitoring
-    try:
-        monitor = IoTMonitor(config)
-        await monitor.start()
-        logger.info("🔍 Monitoring started")
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to initialize monitoring: {e}")
-    
-    logger.info("🎉 IoT Inference Server ready!")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    global inference_engine, telemetry, monitor
-    
-    logger.info("🛑 Shutting down Zig AI IoT Inference Server")
-    
-    if monitor:
-        await monitor.stop()
-    
-    if telemetry:
-        await telemetry.stop()
-    
-    if inference_engine:
-        await inference_engine.cleanup()
-    
-    logger.info("👋 Shutdown complete")
+# Startup and shutdown are now handled by the lifespan context manager above
 
 @app.post("/v1/inference", response_model=InferenceResponse)
 async def inference(request: InferenceRequest):

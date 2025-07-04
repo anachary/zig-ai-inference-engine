@@ -1076,11 +1076,18 @@ fi
 # smart_camera_app.py
 import cv2
 import numpy as np
-from zig_ai_iot import IoTInferenceEngine
+import asyncio
+from zig_ai_bindings import IoTInferenceEngine
 
 class SmartCamera:
     def __init__(self, model_path, camera_id=0):
-        self.engine = IoTInferenceEngine(model_path)
+        # Configure IoT inference engine for computer vision
+        config = {
+            'max_memory_mb': 512,
+            'max_cpu_cores': 4,
+            'enable_gpu': False,  # Set to True for Jetson devices
+        }
+        self.engine = IoTInferenceEngine(model_path, config)
         self.camera = cv2.VideoCapture(camera_id)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -1093,11 +1100,11 @@ class SmartCamera:
                 break
 
             # Preprocess frame
-            input_tensor = self.preprocess_frame(frame)
+            input_data = self.preprocess_frame(frame)
 
-            # Run inference
+            # Run inference (async)
             start_time = time.time()
-            results = self.engine.infer(input_tensor)
+            results = asyncio.run(self.engine.infer(input_data))
             inference_time = time.time() - start_time
 
             # Post-process results
@@ -1118,23 +1125,35 @@ class SmartCamera:
 
     def preprocess_frame(self, frame):
         """Preprocess frame for model input"""
-        # Resize and normalize
+        # Resize and normalize for YOLO model
         resized = cv2.resize(frame, (416, 416))
         normalized = resized.astype(np.float32) / 255.0
-        return np.expand_dims(normalized, axis=0)
+
+        # Convert to the format expected by Zig AI platform
+        return {
+            "image": normalized.tolist(),  # Convert numpy array to list
+            "task": "object_detection",
+            "input_shape": [1, 3, 416, 416],
+            "format": "rgb"
+        }
 
     def draw_detections(self, frame, results):
         """Draw detection boxes on frame"""
-        for detection in results['detections']:
-            x1, y1, x2, y2 = detection['bbox']
-            confidence = detection['confidence']
-            class_name = detection['class']
+        # Handle Zig AI platform response format
+        detections = results.get('result', {}).get('detections', [])
 
-            if confidence > 0.5:
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                label = f"{class_name}: {confidence:.2f}"
-                cv2.putText(frame, label, (x1, y1-10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        for detection in detections:
+            bbox = detection.get('bbox', [])
+            if len(bbox) >= 4:
+                x1, y1, x2, y2 = bbox[:4]
+                confidence = detection.get('confidence', 0.0)
+                class_name = detection.get('class', 'unknown')
+
+                if confidence > 0.5:
+                    cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                    label = f"{class_name}: {confidence:.2f}"
+                    cv2.putText(frame, label, (int(x1), int(y1)-10),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         return frame
 
 # Usage
@@ -1148,11 +1167,18 @@ camera.detect_objects()
 # voice_assistant_iot.py
 import speech_recognition as sr
 import pyttsx3
-from zig_ai_iot import IoTInferenceEngine
+import asyncio
+from zig_ai_bindings import IoTInferenceEngine
 
 class VoiceAssistant:
     def __init__(self, model_path):
-        self.engine = IoTInferenceEngine(model_path)
+        # Configure IoT inference engine for NLP tasks
+        config = {
+            'max_memory_mb': 256,  # Smaller memory for voice processing
+            'max_cpu_cores': 2,
+            'enable_gpu': False,
+        }
+        self.engine = IoTInferenceEngine(model_path, config)
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
         self.tts = pyttsx3.init()
@@ -1200,13 +1226,19 @@ class VoiceAssistant:
     def process_command(self, command):
         """Process voice command using AI model"""
         # Use IoT inference engine for intent recognition
-        intent_result = self.engine.infer({
+        input_data = {
             "text": command,
-            "task": "intent_classification"
-        })
+            "task": "intent_classification",
+            "max_tokens": 10,
+            "temperature": 0.1  # Low temperature for consistent intent classification
+        }
 
-        intent = intent_result['intent']
-        confidence = intent_result['confidence']
+        intent_result = asyncio.run(self.engine.infer(input_data))
+
+        # Extract intent from Zig AI platform response
+        result = intent_result.get('result', {})
+        intent = result.get('intent', 'unknown')
+        confidence = intent_result.get('confidence', 0.0)
 
         if confidence < 0.7:
             return "I'm not sure what you mean. Can you try again?"

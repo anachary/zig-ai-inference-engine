@@ -34,6 +34,9 @@ sudo reboot
 git clone https://github.com/anachary/zig-ai-platform.git
 cd zig-ai-platform
 
+# Build Zig AI IoT library
+zig build -Doptimize=ReleaseFast
+
 # Install IoT dependencies
 pip3 install -r requirements-iot.txt
 ```
@@ -306,32 +309,39 @@ docker run -d \
 import requests
 import cv2
 import time
+import asyncio
+from zig_ai_bindings import IoTInferenceEngine
 
 def detect_person_at_door():
+    # Initialize Zig AI IoT engine for person detection
+    config = {'max_memory_mb': 256, 'enable_gpu': False}
+    engine = IoTInferenceEngine('/opt/zig-ai/models/person_detection.onnx', config)
+
     cap = cv2.VideoCapture(0)
-    
+
     while True:
         ret, frame = cap.read()
         if not ret:
             continue
-            
-        # Save frame temporarily
-        cv2.imwrite('/tmp/doorbell_frame.jpg', frame)
-        
-        # Send to AI model
-        with open('/tmp/doorbell_frame.jpg', 'rb') as f:
-            response = requests.post(
-                'http://localhost:8080/v1/inference',
-                files={'image': f},
-                data={'task': 'person_detection'}
-            )
-            
-        result = response.json()
-        
-        if result.get('person_detected', False):
-            print("🚪 Person detected at door!")
+
+        # Preprocess frame for Zig AI platform
+        resized = cv2.resize(frame, (224, 224))
+        normalized = resized.astype(np.float32) / 255.0
+
+        input_data = {
+            "image": normalized.tolist(),
+            "task": "person_detection",
+            "confidence_threshold": 0.7
+        }
+
+        # Run inference using Zig AI platform
+        result = asyncio.run(engine.infer(input_data))
+
+        if result.get('result', {}).get('person_detected', False):
+            confidence = result.get('confidence', 0.0)
+            print(f"🚪 Person detected at door! (confidence: {confidence:.2f})")
             # Trigger notification, recording, etc.
-            
+
         time.sleep(2)  # Check every 2 seconds
 
 # Run the doorbell
@@ -343,45 +353,56 @@ detect_person_at_door()
 ```python
 # voice_light_control.py
 import speech_recognition as sr
-import requests
+import asyncio
 import RPi.GPIO as GPIO
+from zig_ai_bindings import IoTInferenceEngine
 
 # Setup GPIO for light control
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.OUT)  # Light relay pin
 
 def control_lights():
+    # Initialize Zig AI IoT engine for intent recognition
+    config = {'max_memory_mb': 128, 'max_cpu_cores': 2}
+    engine = IoTInferenceEngine('/opt/zig-ai/models/intent_classifier.onnx', config)
+
     r = sr.Recognizer()
     mic = sr.Microphone()
-    
+
     with mic as source:
         r.adjust_for_ambient_noise(source)
-    
+
     print("🎤 Voice control ready. Say 'lights on' or 'lights off'")
-    
+
     while True:
         try:
             with mic as source:
                 audio = r.listen(source, timeout=1)
-                
+
             text = r.recognize_google(audio).lower()
-            
-            # Send to AI for intent recognition
-            response = requests.post(
-                'http://localhost:8080/v1/inference',
-                json={'text': text, 'task': 'intent_classification'}
-            )
-            
-            result = response.json()
-            intent = result.get('intent', '')
-            
-            if 'lights_on' in intent:
-                GPIO.output(18, GPIO.HIGH)
-                print("💡 Lights turned ON")
-            elif 'lights_off' in intent:
-                GPIO.output(18, GPIO.LOW)
-                print("💡 Lights turned OFF")
-                
+
+            # Use Zig AI platform for intent recognition
+            input_data = {
+                'text': text,
+                'task': 'intent_classification',
+                'max_tokens': 5,
+                'temperature': 0.1
+            }
+
+            result = asyncio.run(engine.infer(input_data))
+            intent = result.get('result', {}).get('intent', '')
+            confidence = result.get('confidence', 0.0)
+
+            if confidence > 0.7:  # High confidence threshold
+                if 'lights_on' in intent:
+                    GPIO.output(18, GPIO.HIGH)
+                    print("💡 Lights turned ON")
+                elif 'lights_off' in intent:
+                    GPIO.output(18, GPIO.LOW)
+                    print("💡 Lights turned OFF")
+            else:
+                print(f"🤔 Uncertain command (confidence: {confidence:.2f})")
+
         except sr.WaitTimeoutError:
             pass
         except Exception as e:
