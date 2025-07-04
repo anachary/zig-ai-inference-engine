@@ -1,0 +1,54 @@
+# Core dependencies for IoT deployment
+numpy==1.21.6
+onnxruntime==1.12.1
+Pillow==9.5.0
+requests==2.31.0
+pyyaml==6.0
+psutil==5.9.5
+
+# Web framework for inference API
+fastapi==0.100.0
+uvicorn[standard]==0.22.0
+
+# Computer vision (headless for IoT)
+opencv-python-headless==4.8.0.74
+
+# Audio processing (optional)
+librosa==0.10.0
+soundfile==0.12.1
+
+# Text processing
+transformers==4.30.0
+tokenizers==0.13.3
+
+# Monitoring and telemetry
+prometheus-client==0.17.0
+
+# Security
+cryptography==41.0.1
+pyjwt==2.7.0
+
+# Utilities
+click==8.1.3
+python-multipart==0.0.6
+aiofiles==23.1.0
+
+# GPIO control (Raspberry Pi)
+RPi.GPIO==0.7.1; platform_machine=="armv7l" or platform_machine=="aarch64"
+
+# Speech recognition (optional)
+SpeechRecognition==3.10.0
+pyaudio==0.2.11
+
+# Text-to-speech (optional)
+pyttsx3==2.90
+
+# Model optimization
+onnx==1.14.0
+onnx-simplifier==0.4.33
+
+# Scheduling for automated tasks
+schedule==1.2.0
+
+# Configuration management
+python-dotenv==1.0.0
