@@ -1,0 +1,473 @@
+# Azure Security Configuration for Zig AI on AKS
+
+# Azure Active Directory Pod Identity
+apiVersion: aadpodidentity.k8s.io/v1
+kind: AzureIdentity
+metadata:
+  name: zig-ai-identity
+  namespace: zig-ai
+spec:
+  type: 0  # Managed Identity
+  resourceID: /subscriptions/${AZURE_SUBSCRIPTION_ID}/resourcegroups/zig-ai-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/zig-ai-identity
+  clientID: ${AZURE_CLIENT_ID}
+
+---
+# Azure Identity Binding
+apiVersion: aadpodidentity.k8s.io/v1
+kind: AzureIdentityBinding
+metadata:
+  name: zig-ai-identity-binding
+  namespace: zig-ai
+spec:
+  azureIdentity: zig-ai-identity
+  selector: zig-ai-pod-identity
+
+---
+# Network Policy for Zig AI namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zig-ai-network-policy
+  namespace: zig-ai
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from Azure Load Balancer
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow inter-pod communication within namespace
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP
+      port: 9091
+  egress:
+  # Allow egress to Azure services
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+  # Allow egress within namespace
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8080
+
+---
+# Network Policy for monitoring namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow Prometheus to scrape metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: zig-ai
+    ports:
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP
+      port: 9091
+  egress:
+  # Allow monitoring to reach all namespaces
+  - to: []
+
+---
+# Pod Security Policy for Zig AI
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: zig-ai-psp
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+    - 'azureFile'
+    - 'azureDisk'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+
+---
+# ClusterRole for Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zig-ai-psp-user
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - zig-ai-psp
+
+---
+# ClusterRoleBinding for Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zig-ai-psp-binding
+roleRef:
+  kind: ClusterRole
+  name: zig-ai-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: zig-ai-coordinator
+  namespace: zig-ai
+- kind: ServiceAccount
+  name: zig-ai-shard
+  namespace: zig-ai
+
+---
+# Azure Key Vault SecretProviderClass
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: zig-ai-azure-keyvault
+  namespace: zig-ai
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "true"
+    keyvaultName: "zig-ai-keyvault"
+    cloudName: "AzurePublicCloud"
+    objects: |
+      array:
+        - |
+          objectName: model-encryption-key
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: api-authentication-key
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: database-connection-string
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: azure-storage-key
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: ssl-certificate
+          objectType: cert
+          objectVersion: ""
+        - |
+          objectName: ssl-private-key
+          objectType: key
+          objectVersion: ""
+  secretObjects:
+  - secretName: zig-ai-secrets
+    type: Opaque
+    data:
+    - objectName: model-encryption-key
+      key: model-encryption-key
+    - objectName: api-authentication-key
+      key: api-authentication-key
+    - objectName: database-connection-string
+      key: database-connection-string
+    - objectName: azure-storage-key
+      key: azure-storage-key
+  - secretName: zig-ai-tls
+    type: kubernetes.io/tls
+    data:
+    - objectName: ssl-certificate
+      key: tls.crt
+    - objectName: ssl-private-key
+      key: tls.key
+
+---
+# Service Account for Coordinator with Azure Identity
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zig-ai-coordinator
+  namespace: zig-ai
+  labels:
+    aadpodidbinding: zig-ai-pod-identity
+  annotations:
+    azure.workload.identity/client-id: ${AZURE_CLIENT_ID}
+    azure.workload.identity/tenant-id: ${AZURE_TENANT_ID}
+
+---
+# Service Account for Shard with Azure Identity
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zig-ai-shard
+  namespace: zig-ai
+  labels:
+    aadpodidbinding: zig-ai-pod-identity
+  annotations:
+    azure.workload.identity/client-id: ${AZURE_CLIENT_ID}
+    azure.workload.identity/tenant-id: ${AZURE_TENANT_ID}
+
+---
+# RBAC for Zig AI Coordinator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: zig-ai
+  name: zig-ai-coordinator-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding for Coordinator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zig-ai-coordinator-binding
+  namespace: zig-ai
+subjects:
+- kind: ServiceAccount
+  name: zig-ai-coordinator
+  namespace: zig-ai
+roleRef:
+  kind: Role
+  name: zig-ai-coordinator-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RBAC for Zig AI Shard
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: zig-ai
+  name: zig-ai-shard-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding for Shard
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zig-ai-shard-binding
+  namespace: zig-ai
+subjects:
+- kind: ServiceAccount
+  name: zig-ai-shard
+  namespace: zig-ai
+roleRef:
+  kind: Role
+  name: zig-ai-shard-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Azure Firewall Rules ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-firewall-rules
+  namespace: zig-ai
+data:
+  firewall-rules.json: |
+    {
+      "rules": [
+        {
+          "name": "AllowHTTPSOutbound",
+          "priority": 100,
+          "direction": "Outbound",
+          "access": "Allow",
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "destinationPortRange": "443",
+          "sourceAddressPrefix": "VirtualNetwork",
+          "destinationAddressPrefix": "Internet"
+        },
+        {
+          "name": "AllowAzureServicesOutbound",
+          "priority": 110,
+          "direction": "Outbound",
+          "access": "Allow",
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "destinationPortRange": "443",
+          "sourceAddressPrefix": "VirtualNetwork",
+          "destinationAddressPrefix": "AzureCloud"
+        },
+        {
+          "name": "AllowInferenceInbound",
+          "priority": 200,
+          "direction": "Inbound",
+          "access": "Allow",
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "destinationPortRange": "8080",
+          "sourceAddressPrefix": "Internet",
+          "destinationAddressPrefix": "VirtualNetwork"
+        },
+        {
+          "name": "DenyAllInbound",
+          "priority": 4096,
+          "direction": "Inbound",
+          "access": "Deny",
+          "protocol": "*",
+          "sourcePortRange": "*",
+          "destinationPortRange": "*",
+          "sourceAddressPrefix": "*",
+          "destinationAddressPrefix": "*"
+        }
+      ]
+    }
+
+---
+# Security Context Constraints
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-context-config
+  namespace: zig-ai
+data:
+  security-context.yaml: |
+    security:
+      # Pod security context
+      pod_security_context:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+          
+      # Container security context
+      container_security_context:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        capabilities:
+          drop:
+            - ALL
+          add:
+            - NET_BIND_SERVICE  # Only if needed for port binding
+            
+      # Network security
+      network_security:
+        enable_network_policies: true
+        deny_all_by_default: true
+        allow_dns: true
+        allow_azure_services: true
+        
+      # Secrets management
+      secrets:
+        encryption_at_rest: true
+        rotation_enabled: true
+        rotation_interval: "30d"
+        
+      # Audit logging
+      audit:
+        enabled: true
+        log_level: "Metadata"
+        retention_days: 90
+
+---
+# TLS Configuration Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zig-ai-tls-config
+  namespace: zig-ai
+type: Opaque
+data:
+  tls.conf: |
+    # TLS Configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+---
+# Azure Policy Assignment for Security
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-policy-config
+  namespace: zig-ai
+data:
+  policies.json: |
+    {
+      "policies": [
+        {
+          "name": "RequireHTTPS",
+          "description": "Require HTTPS for all external communications",
+          "effect": "Deny",
+          "scope": "ResourceGroup"
+        },
+        {
+          "name": "RequireEncryption",
+          "description": "Require encryption for all storage accounts",
+          "effect": "Audit",
+          "scope": "ResourceGroup"
+        },
+        {
+          "name": "RestrictPublicIPs",
+          "description": "Restrict public IP assignments",
+          "effect": "Deny",
+          "scope": "ResourceGroup"
+        },
+        {
+          "name": "RequireNSG",
+          "description": "Require Network Security Groups on all subnets",
+          "effect": "Audit",
+          "scope": "ResourceGroup"
+        }
+      ]
+    }

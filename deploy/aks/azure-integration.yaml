@@ -1,0 +1,353 @@
+# Azure-specific integrations for Zig AI on AKS
+
+# Azure Container Registry Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: acr-secret
+  namespace: zig-ai
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: # Base64 encoded Docker config
+
+---
+# Azure Key Vault SecretProviderClass
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: zig-ai-keyvault
+  namespace: zig-ai
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"
+    userAssignedIdentityID: ""
+    keyvaultName: "zig-ai-keyvault"
+    cloudName: ""
+    objects: |
+      array:
+        - |
+          objectName: model-access-key
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: api-secret-key
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: database-connection
+          objectType: secret
+          objectVersion: ""
+  secretObjects:
+  - secretName: zig-ai-secrets
+    type: Opaque
+    data:
+    - objectName: model-access-key
+      key: model-access-key
+    - objectName: api-secret-key
+      key: api-secret-key
+    - objectName: database-connection
+      key: database-connection
+
+---
+# Azure Storage Account for Models
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: azure-models-pv
+spec:
+  capacity:
+    storage: 5Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: azurefile-premium
+  csi:
+    driver: file.csi.azure.com
+    readOnly: false
+    volumeHandle: unique-volumeid
+    volumeAttributes:
+      resourceGroup: zig-ai-rg
+      storageAccount: zigaimodels
+      shareName: models
+      protocol: nfs
+
+---
+# Azure Files PVC for Model Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-models-pvc
+  namespace: zig-ai
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azurefile-premium
+  resources:
+    requests:
+      storage: 5Ti
+
+---
+# Azure Managed Identity for Pod
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zig-ai-identity
+  namespace: zig-ai
+  annotations:
+    azure.workload.identity/client-id: "your-managed-identity-client-id"
+    azure.workload.identity/tenant-id: "your-tenant-id"
+
+---
+# Azure Monitor ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-monitor-config
+  namespace: zig-ai
+data:
+  config.yaml: |
+    azure:
+      monitor:
+        workspace_id: "your-log-analytics-workspace-id"
+        workspace_key: "your-workspace-key"
+        custom_metrics_enabled: true
+        log_level: "info"
+        
+    metrics:
+      collection_interval: "30s"
+      custom_metrics:
+        - name: "inference_latency"
+          description: "Time taken for inference requests"
+          unit: "milliseconds"
+        - name: "shard_memory_usage"
+          description: "Memory usage per shard"
+          unit: "bytes"
+        - name: "gpu_utilization"
+          description: "GPU utilization percentage"
+          unit: "percent"
+        - name: "model_throughput"
+          description: "Tokens processed per second"
+          unit: "tokens/second"
+          
+    logs:
+      structured_logging: true
+      log_format: "json"
+      retention_days: 30
+
+---
+# Azure Application Insights Integration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: appinsights-config
+  namespace: zig-ai
+data:
+  applicationinsights.json: |
+    {
+      "instrumentationKey": "your-app-insights-key",
+      "connectionString": "InstrumentationKey=your-key;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/",
+      "role": {
+        "name": "zig-ai-distributed-inference"
+      },
+      "sampling": {
+        "percentage": 100
+      },
+      "telemetry": {
+        "enableAutoCollect": {
+          "requests": true,
+          "dependencies": true,
+          "exceptions": true,
+          "performance": true,
+          "heartbeat": true
+        }
+      }
+    }
+
+---
+# Azure Blob Storage for Model Artifacts
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-storage-secret
+  namespace: zig-ai
+type: Opaque
+data:
+  azurestorageaccountname: # Base64 encoded storage account name
+  azurestorageaccountkey: # Base64 encoded storage account key
+
+---
+# Azure Container Instances for Burst Scaling
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aci-config
+  namespace: zig-ai
+data:
+  aci.yaml: |
+    azure:
+      container_instances:
+        enabled: true
+        resource_group: "zig-ai-rg"
+        location: "eastus"
+        
+        # Burst scaling configuration
+        burst_scaling:
+          enabled: true
+          max_instances: 10
+          scale_up_threshold: 80  # CPU percentage
+          scale_down_threshold: 20
+          scale_up_cooldown: "5m"
+          scale_down_cooldown: "10m"
+          
+        # Container configuration
+        container:
+          image: "zigairegistry.azurecr.io/zig-ai/shard:latest"
+          cpu: 4
+          memory: "16Gi"
+          gpu:
+            enabled: false
+            count: 0
+            sku: "K80"
+
+---
+# Azure Network Security Group Rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-network-config
+  namespace: zig-ai
+data:
+  network-rules.yaml: |
+    azure:
+      network_security:
+        rules:
+          - name: "allow-coordinator-ingress"
+            priority: 100
+            direction: "Inbound"
+            access: "Allow"
+            protocol: "Tcp"
+            source_port_range: "*"
+            destination_port_range: "8080"
+            source_address_prefix: "Internet"
+            destination_address_prefix: "*"
+            
+          - name: "allow-shard-communication"
+            priority: 110
+            direction: "Inbound"
+            access: "Allow"
+            protocol: "Tcp"
+            source_port_range: "*"
+            destination_port_range: "8080-8090"
+            source_address_prefix: "VirtualNetwork"
+            destination_address_prefix: "VirtualNetwork"
+            
+          - name: "allow-monitoring"
+            priority: 120
+            direction: "Inbound"
+            access: "Allow"
+            protocol: "Tcp"
+            source_port_range: "*"
+            destination_port_range: "9090-9091"
+            source_address_prefix: "VirtualNetwork"
+            destination_address_prefix: "*"
+
+---
+# Azure Load Balancer Configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: zig-ai-azure-lb
+  namespace: zig-ai
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: "/api/v1/health"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-interval: "5"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-num-of-probe: "2"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-timeout: "4"
+    service.beta.kubernetes.io/azure-dns-label-name: "zig-ai-inference"
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: zig-ai-coordinator
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8443
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+
+---
+# Azure Backup Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-backup-config
+  namespace: zig-ai
+data:
+  backup.yaml: |
+    azure:
+      backup:
+        enabled: true
+        vault_name: "zig-ai-backup-vault"
+        resource_group: "zig-ai-rg"
+        
+        # Backup policies
+        policies:
+          - name: "model-data-backup"
+            frequency: "daily"
+            retention_days: 30
+            backup_time: "02:00"
+            
+          - name: "config-backup"
+            frequency: "weekly"
+            retention_weeks: 12
+            backup_day: "sunday"
+            
+        # Items to backup
+        backup_items:
+          - type: "persistent_volume"
+            name: "azure-models-pvc"
+            policy: "model-data-backup"
+            
+          - type: "configmap"
+            name: "zig-ai-config"
+            policy: "config-backup"
+
+---
+# Azure Cost Management Tags
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-cost-tags
+  namespace: zig-ai
+data:
+  tags.yaml: |
+    azure:
+      cost_management:
+        tags:
+          Environment: "production"
+          Project: "zig-ai-inference"
+          CostCenter: "ai-research"
+          Owner: "ai-team"
+          Application: "distributed-inference"
+          Criticality: "high"
+          
+        # Budget alerts
+        budgets:
+          - name: "zig-ai-monthly-budget"
+            amount: 10000  # USD
+            period: "monthly"
+            alerts:
+              - threshold: 80
+                contact_emails: ["admin@company.com"]
+              - threshold: 100
+                contact_emails: ["admin@company.com", "finance@company.com"]
