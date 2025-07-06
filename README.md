@@ -194,44 +194,44 @@ Each component follows strict SOLID principles:
 
 ## 📚 Documentation
 
-### 🚀 Deployment Guides
-- [**Massive LLM Deployment Guide**](docs/MASSIVE_LLM_DEPLOYMENT_GUIDE.md) - Complete guide for deploying 175B+ parameter models on AKS
-- [**Quick Start Guide**](docs/QUICK_START_LLM_DEPLOYMENT.md) - Deploy LLM on AKS in 30 minutes
-- [Distributed Deployment Guide](docs/DISTRIBUTED_DEPLOYMENT_GUIDE.md) - Comprehensive deployment instructions
+> **📋 [Complete Documentation](docs/)** - Comprehensive documentation following the Diátaxis framework
 
-### 🔧 Operations & Optimization
-- [**LLM Troubleshooting Guide**](docs/LLM_TROUBLESHOOTING_GUIDE.md) - Diagnose and resolve common deployment issues
-- [**Performance Optimization Guide**](docs/LLM_PERFORMANCE_OPTIMIZATION.md) - Optimize inference performance and reduce costs
+### 🚀 **Get Started Quickly**
+| Resource | Time | Purpose |
+|----------|------|---------|
+| [**Getting Started**](docs/getting-started.md) | 5 min | Quick introduction and setup |
+| [**IoT Tutorial**](docs/tutorials/iot-quick-start.md) | 15 min | Deploy AI on IoT device |
+| [**LLM Tutorial**](docs/tutorials/llm-quick-start.md) | 30 min | Deploy LLM on cloud |
 
-### 🔍 Technical Deep-Dive Resources
-- [Architecture Design](docs/ARCHITECTURE_DESIGN.md)
-- [Memory Management Guide](docs/MEMORY_ALLOCATION_GUIDE.md)
-- [GPU Architecture](docs/GPU_ARCHITECTURE.md)
-- [Integration Guide](docs/INTEGRATION_GUIDE.md)
-- [API Reference](docs/API_REFERENCE.md)
+### 📖 **Documentation Structure**
+| Section | Purpose | When to Use |
+|---------|---------|-------------|
+| [**📖 Tutorials**](docs/tutorials/) | Learn by doing | New to the platform |
+| [**🎯 How-to Guides**](docs/how-to-guides/) | Solve specific problems | Have a goal to accomplish |
+| [**🧠 Concepts**](docs/concepts/) | Understand the system | Want to understand how/why |
+| [**📋 Reference**](docs/reference/) | Look up details | Need technical specifications |
 
-## 📚 Documentation
+### 🎯 **Choose Your Path**
 
-### 🚀 Deployment Guides
-- [**Massive LLM Deployment Guide**](docs/MASSIVE_LLM_DEPLOYMENT_GUIDE.md) - Complete guide for deploying 175B+ parameter models on AKS
-- [**Quick Start Guide**](docs/QUICK_START_LLM_DEPLOYMENT.md) - Deploy LLM on AKS in 30 minutes
-- [**IoT Edge Deployment Guide**](docs/IOT_EDGE_DEPLOYMENT_GUIDE.md) - Comprehensive guide for deploying small models on IoT devices
-- [**IoT Quick Start Guide**](docs/IOT_QUICK_START_GUIDE.md) - Deploy AI model on IoT device in 15 minutes
-- [Distributed Deployment Guide](docs/DISTRIBUTED_DEPLOYMENT_GUIDE.md) - Architecture and deployment instructions
+#### 🌱 **New to AI Inference?**
+1. [Getting Started](docs/getting-started.md) - Quick introduction
+2. [IoT Tutorial](docs/tutorials/iot-quick-start.md) - Hands-on learning
+3. [Ecosystem Overview](docs/concepts/ecosystem-overview.md) - Understand the big picture
 
-### 🔧 Operations & Optimization
-- [**LLM Troubleshooting Guide**](docs/LLM_TROUBLESHOOTING_GUIDE.md) - Diagnose and resolve common deployment issues
-- [**Performance Optimization Guide**](docs/LLM_PERFORMANCE_OPTIMIZATION.md) - Optimize inference performance and reduce costs
+#### 🚀 **Ready to Deploy?**
+1. [LLM Tutorial](docs/tutorials/llm-quick-start.md) - Learn the basics
+2. [Massive LLM Guide](docs/how-to-guides/massive-llm-deployment.md) - Enterprise deployment
+3. [Performance Optimization](docs/how-to-guides/performance-optimization.md) - Production tuning
 
-### 🏷️ Configuration & Management
-- [**Deployment Naming Guide**](docs/DEPLOYMENT_NAMING_GUIDE.md) - Best practices for naming and organizing deployments
+#### 👨‍💻 **Developer?**
+1. [Architecture Design](docs/concepts/architecture-design.md) - Design principles
+2. [Integration Guide](docs/reference/integration-guide.md) - Component integration
+3. [API Reference](docs/reference/api-reference.md) - Complete API docs
 
-### 🔍 Technical Deep-Dive Resources
-- [Architecture Design](docs/ARCHITECTURE_DESIGN.md)
-- [Memory Management Guide](docs/MEMORY_ALLOCATION_GUIDE.md)
-- [GPU Architecture](docs/GPU_ARCHITECTURE.md)
-- [Integration Guide](docs/INTEGRATION_GUIDE.md)
-- [API Reference](docs/API_REFERENCE.md)
+#### 🔧 **DevOps Engineer?**
+1. [Distributed Deployment](docs/how-to-guides/distributed-deployment.md) - Multi-node setup
+2. [Troubleshooting](docs/how-to-guides/troubleshooting.md) - Diagnostic procedures
+3. [Performance Optimization](docs/how-to-guides/performance-optimization.md) - Optimization guide
 
 ## 🤝 Contributing
 
