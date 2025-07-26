@@ -100,6 +100,9 @@ pub const operators = struct {
     pub const shape = @import("operators/shape.zig");
 };
 
+// Re-export tokenizer
+pub const SimpleTokenizer = @import("tokenizer/simple_tokenizer.zig").SimpleTokenizer;
+
 // Import common interfaces for re-export
 const common_interfaces = @import("common-interfaces");
 pub const TensorInterface = common_interfaces.TensorInterface;
