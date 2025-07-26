@@ -65,6 +65,23 @@ pub fn build(b: *std.Build) void {
     const operator_test_step = b.step("test-operators", "Run operator tests");
     operator_test_step.dependOn(&b.addRunArtifact(test_exe).step);
 
+    // Create real inference test executable
+    const inference_test_exe = b.addTest(.{
+        .name = "test-inference",
+        .root_source_file = .{ .path = "tests/test_real_inference.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to inference test executable
+    inference_test_exe.addModule("zig-inference-engine", inference_engine_module);
+    inference_test_exe.addModule("zig-tensor-core", tensor_core_module);
+    inference_test_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create inference test step
+    const inference_test_step = b.step("test-inference", "Run real inference tests");
+    inference_test_step.dependOn(&b.addRunArtifact(inference_test_exe).step);
+
     // Create run step for the CLI
     const cli_run = b.addRunArtifact(cli_exe);
     cli_run.step.dependOn(b.getInstallStep());
