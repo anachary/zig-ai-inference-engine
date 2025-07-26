@@ -5,8 +5,8 @@ const Mutex = std.Thread.Mutex;
 const Condition = std.Thread.Condition;
 
 // Import common interfaces
-const tensor_core = @import("zig-tensor-core");
-const TensorInterface = tensor_core.TensorInterface;
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
 
 /// Task types for the scheduler
 pub const TaskType = enum {
@@ -192,7 +192,7 @@ pub const TaskScheduler = struct {
 
     /// Initialize the task scheduler
     pub fn init(allocator: Allocator, num_threads: ?u32) !Self {
-        const worker_count = num_threads orelse @max(1, std.Thread.getCpuCount() catch 4);
+        const worker_count = num_threads orelse @as(u32, @intCast(@max(1, std.Thread.getCpuCount() catch 4)));
 
         var self = Self{
             .allocator = allocator,

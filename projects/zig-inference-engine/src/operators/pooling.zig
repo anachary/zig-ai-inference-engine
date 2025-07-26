@@ -2,7 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 // Import common interfaces and registry
-const TensorInterface = @import("../../../common/interfaces/tensor.zig").TensorInterface;
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
 const OperatorInfo = @import("registry.zig").OperatorInfo;
 const OperatorFn = @import("registry.zig").OperatorFn;
 const ValidatorFn = @import("registry.zig").ValidatorFn;

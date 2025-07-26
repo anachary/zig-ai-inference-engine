@@ -51,40 +51,40 @@ pub const TensorInterface = struct {
     pub const Operations = struct {
         /// Initialize a tensor with given shape and data type
         initFn: *const fn (allocator: Allocator, shape: []const usize, dtype: DataType) TensorError!*anyopaque,
-        
+
         /// Deinitialize a tensor
         deinitFn: *const fn (tensor: *anyopaque) void,
-        
+
         /// Get tensor shape
         shapeFn: *const fn (tensor: *const anyopaque) []const usize,
-        
+
         /// Get tensor data type
         dtypeFn: *const fn (tensor: *const anyopaque) DataType,
-        
+
         /// Get tensor device
         deviceFn: *const fn (tensor: *const anyopaque) Device,
-        
+
         /// Get number of elements
         numelFn: *const fn (tensor: *const anyopaque) usize,
-        
+
         /// Get number of dimensions
         ndimFn: *const fn (tensor: *const anyopaque) usize,
-        
+
         /// Get size in bytes
         sizeByteFn: *const fn (tensor: *const anyopaque) usize,
-        
+
         /// Get raw data pointer
         dataFn: *const fn (tensor: *const anyopaque) []u8,
-        
+
         /// Set f32 value at index
         setF32Fn: *const fn (tensor: *anyopaque, indices: []const usize, value: f32) TensorError!void,
-        
+
         /// Get f32 value at index
         getF32Fn: *const fn (tensor: *const anyopaque, indices: []const usize) TensorError!f32,
-        
+
         /// Copy tensor
         copyFn: *const fn (allocator: Allocator, tensor: *const anyopaque) TensorError!*anyopaque,
-        
+
         /// Reshape tensor
         reshapeFn: *const fn (tensor: *anyopaque, new_shape: []const usize) TensorError!void,
     };
@@ -94,8 +94,8 @@ pub const TensorInterface = struct {
     ptr: *anyopaque,
 
     /// Initialize tensor
-    pub fn init(allocator: Allocator, shape: []const usize, dtype: DataType, impl: Operations) TensorError!TensorInterface {
-        const ptr = try impl.initFn(allocator, shape, dtype);
+    pub fn init(allocator: Allocator, tensor_shape: []const usize, data_type: DataType, impl: Operations) TensorError!TensorInterface {
+        const ptr = try impl.initFn(allocator, tensor_shape, data_type);
         return TensorInterface{
             .impl = impl,
             .ptr = ptr,
@@ -170,19 +170,19 @@ pub const TensorInterface = struct {
 /// Math operations interface
 pub const MathInterface = struct {
     /// Add two tensors
-    addFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorError!TensorInterface,
-    
+    addFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorInterface.TensorError!TensorInterface,
+
     /// Subtract two tensors
-    subFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorError!TensorInterface,
-    
+    subFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorInterface.TensorError!TensorInterface,
+
     /// Multiply two tensors
-    mulFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorError!TensorInterface,
-    
+    mulFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorInterface.TensorError!TensorInterface,
+
     /// Matrix multiplication
-    matmulFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorError!TensorInterface,
-    
+    matmulFn: *const fn (allocator: Allocator, a: *const TensorInterface, b: *const TensorInterface) TensorInterface.TensorError!TensorInterface,
+
     /// Apply activation function
-    activationFn: *const fn (allocator: Allocator, input: *const TensorInterface, activation_type: ActivationType) TensorError!TensorInterface,
+    activationFn: *const fn (allocator: Allocator, input: *const TensorInterface, activation_type: ActivationType) TensorInterface.TensorError!TensorInterface,
 
     pub const ActivationType = enum {
         relu,
@@ -197,13 +197,13 @@ pub const MathInterface = struct {
 pub const SIMDInterface = struct {
     /// Check if SIMD is available
     isAvailableFn: *const fn () bool,
-    
+
     /// Get SIMD vector width for data type
     vectorWidthFn: *const fn (dtype: TensorInterface.DataType) usize,
-    
+
     /// Vectorized add operation
     vectorAddFn: *const fn (a: []const u8, b: []const u8, result: []u8, dtype: TensorInterface.DataType) void,
-    
+
     /// Vectorized multiply operation
     vectorMulFn: *const fn (a: []const u8, b: []const u8, result: []u8, dtype: TensorInterface.DataType) void,
 };

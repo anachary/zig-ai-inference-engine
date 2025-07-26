@@ -2,8 +2,19 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 // Import common interfaces
-const DeviceInterface = @import("../../../common/interfaces/device.zig").DeviceInterface;
-const TensorInterface = @import("../../../common/interfaces/tensor.zig").TensorInterface;
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
+
+// Simple device interface for GPU backend
+const DeviceInterface = struct {
+    device_id: u32,
+    device_type: enum { cpu, gpu, npu },
+
+    pub fn deinitialize(self: *DeviceInterface) void {
+        _ = self;
+        // Device cleanup would be implemented here
+    }
+};
 
 /// GPU backend types
 pub const BackendType = enum {
@@ -38,7 +49,7 @@ pub const Kernel = struct {
     source: []const u8,
     compiled: bool,
     backend_handle: ?*anyopaque,
-    
+
     pub fn init(name: []const u8, source: []const u8) Kernel {
         return Kernel{
             .name = name,
@@ -54,7 +65,7 @@ pub const ExecutionContext = struct {
     backend: *GPUBackend,
     stream: ?*anyopaque,
     events: std.ArrayList(*anyopaque),
-    
+
     pub fn init(allocator: Allocator, backend: *GPUBackend) ExecutionContext {
         return ExecutionContext{
             .backend = backend,
@@ -62,7 +73,7 @@ pub const ExecutionContext = struct {
             .events = std.ArrayList(*anyopaque).init(allocator),
         };
     }
-    
+
     pub fn deinit(self: *ExecutionContext) void {
         self.events.deinit();
     }
@@ -89,7 +100,7 @@ pub const GPUBackend = struct {
     contexts: std.ArrayList(ExecutionContext),
     stats: BackendStats,
     initialized: bool,
-    
+
     const Self = @This();
 
     /// Initialize GPU backend
@@ -117,7 +128,7 @@ pub const GPUBackend = struct {
             },
             .initialized = false,
         };
-        
+
         try self.initializeBackend();
         return self;
     }
@@ -127,20 +138,20 @@ pub const GPUBackend = struct {
         if (self.initialized) {
             self.shutdownBackend();
         }
-        
+
         // Clean up kernels
         var kernel_iter = self.kernels.iterator();
         while (kernel_iter.next()) |entry| {
             self.cleanupKernel(entry.value_ptr);
         }
         self.kernels.deinit();
-        
+
         // Clean up contexts
         for (self.contexts.items) |*context| {
             context.deinit();
         }
         self.contexts.deinit();
-        
+
         if (self.device_interface) |*device| {
             device.deinitialize();
         }
@@ -150,7 +161,7 @@ pub const GPUBackend = struct {
     pub fn autoDetect(allocator: Allocator) !Self {
         // Try backends in order of preference
         const backends = [_]BackendType{ .cuda, .vulkan, .opencl, .metal, .cpu_fallback };
-        
+
         for (backends) |backend_type| {
             if (Self.init(allocator, backend_type)) |backend| {
                 std.log.info("GPU backend auto-detected: {}", .{backend_type});
@@ -160,7 +171,7 @@ pub const GPUBackend = struct {
                 continue;
             }
         }
-        
+
         // Fallback to CPU
         std.log.warn("No GPU backend available, falling back to CPU");
         return Self.init(allocator, .cpu_fallback);
@@ -182,9 +193,9 @@ pub const GPUBackend = struct {
         if (self.kernels.contains(kernel.name)) {
             return; // Already compiled
         }
-        
+
         var compiled_kernel = kernel;
-        
+
         switch (self.backend_type) {
             .cpu_fallback => {
                 // CPU fallback doesn't need compilation
@@ -203,10 +214,10 @@ pub const GPUBackend = struct {
                 try self.compileMetalKernel(&compiled_kernel);
             },
         }
-        
+
         try self.kernels.put(kernel.name, compiled_kernel);
         self.stats.kernels_compiled += 1;
-        
+
         std.log.info("Compiled kernel: {s}", .{kernel.name});
     }
 
@@ -220,13 +231,13 @@ pub const GPUBackend = struct {
         block_size: [3]u32,
     ) !void {
         const kernel = self.kernels.get(kernel_name) orelse return BackendError.UnsupportedOperation;
-        
+
         if (!kernel.compiled) {
             return BackendError.KernelCompilationFailed;
         }
-        
+
         const start_time = std.time.nanoTimestamp();
-        
+
         switch (self.backend_type) {
             .cpu_fallback => {
                 try self.executeCpuKernel(kernel, inputs, outputs);
@@ -244,14 +255,14 @@ pub const GPUBackend = struct {
                 try self.executeMetalKernel(kernel, inputs, outputs, grid_size);
             },
         }
-        
+
         const end_time = std.time.nanoTimestamp();
         const execution_time_ms = @as(f32, @floatFromInt(end_time - start_time)) / 1_000_000.0;
-        
+
         // Update statistics
         self.stats.operations_executed += 1;
         self.stats.total_execution_time_ms += execution_time_ms;
-        self.stats.average_execution_time_ms = 
+        self.stats.average_execution_time_ms =
             @as(f32, @floatCast(self.stats.total_execution_time_ms)) / @as(f32, @floatFromInt(self.stats.operations_executed));
     }
 
@@ -319,7 +330,7 @@ pub const GPUBackend = struct {
                 try self.initializeMetal();
             },
         }
-        
+
         std.log.info("GPU backend initialized: {}", .{self.backend_type});
     }
 
@@ -385,46 +396,99 @@ pub const GPUBackend = struct {
     }
 
     // Backend-specific shutdown methods (stubs for now)
-    fn shutdownCuda(self: *Self) void { _ = self; }
-    fn shutdownVulkan(self: *Self) void { _ = self; }
-    fn shutdownOpenCL(self: *Self) void { _ = self; }
-    fn shutdownMetal(self: *Self) void { _ = self; }
+    fn shutdownCuda(self: *Self) void {
+        _ = self;
+    }
+    fn shutdownVulkan(self: *Self) void {
+        _ = self;
+    }
+    fn shutdownOpenCL(self: *Self) void {
+        _ = self;
+    }
+    fn shutdownMetal(self: *Self) void {
+        _ = self;
+    }
 
     // Backend-specific kernel compilation methods (stubs for now)
-    fn compileCudaKernel(self: *Self, kernel: *Kernel) !void { _ = self; _ = kernel; return BackendError.KernelCompilationFailed; }
-    fn compileVulkanKernel(self: *Self, kernel: *Kernel) !void { _ = self; _ = kernel; return BackendError.KernelCompilationFailed; }
-    fn compileOpenCLKernel(self: *Self, kernel: *Kernel) !void { _ = self; _ = kernel; return BackendError.KernelCompilationFailed; }
-    fn compileMetalKernel(self: *Self, kernel: *Kernel) !void { _ = self; _ = kernel; return BackendError.KernelCompilationFailed; }
+    fn compileCudaKernel(self: *Self, kernel: *Kernel) !void {
+        _ = self;
+        _ = kernel;
+        return BackendError.KernelCompilationFailed;
+    }
+    fn compileVulkanKernel(self: *Self, kernel: *Kernel) !void {
+        _ = self;
+        _ = kernel;
+        return BackendError.KernelCompilationFailed;
+    }
+    fn compileOpenCLKernel(self: *Self, kernel: *Kernel) !void {
+        _ = self;
+        _ = kernel;
+        return BackendError.KernelCompilationFailed;
+    }
+    fn compileMetalKernel(self: *Self, kernel: *Kernel) !void {
+        _ = self;
+        _ = kernel;
+        return BackendError.KernelCompilationFailed;
+    }
 
     // Backend-specific execution methods (stubs for now)
     fn executeCpuKernel(self: *Self, kernel: Kernel, inputs: []const TensorInterface, outputs: []TensorInterface) !void {
-        _ = self; _ = kernel; _ = inputs; _ = outputs;
+        _ = self;
+        _ = kernel;
+        _ = inputs;
+        _ = outputs;
         // CPU fallback implementation
     }
-    
+
     fn executeCudaKernel(self: *Self, kernel: Kernel, inputs: []const TensorInterface, outputs: []TensorInterface, grid_size: [3]u32, block_size: [3]u32) !void {
-        _ = self; _ = kernel; _ = inputs; _ = outputs; _ = grid_size; _ = block_size;
+        _ = self;
+        _ = kernel;
+        _ = inputs;
+        _ = outputs;
+        _ = grid_size;
+        _ = block_size;
         return BackendError.ExecutionFailed;
     }
-    
+
     fn executeVulkanKernel(self: *Self, kernel: Kernel, inputs: []const TensorInterface, outputs: []TensorInterface, grid_size: [3]u32) !void {
-        _ = self; _ = kernel; _ = inputs; _ = outputs; _ = grid_size;
+        _ = self;
+        _ = kernel;
+        _ = inputs;
+        _ = outputs;
+        _ = grid_size;
         return BackendError.ExecutionFailed;
     }
-    
+
     fn executeOpenCLKernel(self: *Self, kernel: Kernel, inputs: []const TensorInterface, outputs: []TensorInterface, grid_size: [3]u32, block_size: [3]u32) !void {
-        _ = self; _ = kernel; _ = inputs; _ = outputs; _ = grid_size; _ = block_size;
+        _ = self;
+        _ = kernel;
+        _ = inputs;
+        _ = outputs;
+        _ = grid_size;
+        _ = block_size;
         return BackendError.ExecutionFailed;
     }
-    
+
     fn executeMetalKernel(self: *Self, kernel: Kernel, inputs: []const TensorInterface, outputs: []TensorInterface, grid_size: [3]u32) !void {
-        _ = self; _ = kernel; _ = inputs; _ = outputs; _ = grid_size;
+        _ = self;
+        _ = kernel;
+        _ = inputs;
+        _ = outputs;
+        _ = grid_size;
         return BackendError.ExecutionFailed;
     }
 
     // Backend-specific synchronization methods (stubs for now)
-    fn synchronizeCuda(self: *Self) !void { _ = self; }
-    fn synchronizeVulkan(self: *Self) !void { _ = self; }
-    fn synchronizeOpenCL(self: *Self) !void { _ = self; }
-    fn synchronizeMetal(self: *Self) !void { _ = self; }
+    fn synchronizeCuda(self: *Self) !void {
+        _ = self;
+    }
+    fn synchronizeVulkan(self: *Self) !void {
+        _ = self;
+    }
+    fn synchronizeOpenCL(self: *Self) !void {
+        _ = self;
+    }
+    fn synchronizeMetal(self: *Self) !void {
+        _ = self;
+    }
 };

@@ -1,9 +1,9 @@
 const std = @import("std");
 
 /// Zig Inference Engine - High-performance neural network inference and execution engine
-/// 
+///
 /// This library provides a focused, high-performance inference engine following the
-/// Single Responsibility Principle. It handles only model execution, operator 
+/// Single Responsibility Principle. It handles only model execution, operator
 /// implementation, and inference scheduling.
 ///
 /// Key Features:
@@ -101,10 +101,14 @@ pub const operators = struct {
 };
 
 // Import common interfaces for re-export
-pub const TensorInterface = @import("../../common/interfaces/tensor.zig").TensorInterface;
-pub const ModelInterface = @import("../../common/interfaces/model.zig").ModelInterface;
-pub const InferenceInterface = @import("../../common/interfaces/model.zig").InferenceInterface;
-pub const DeviceInterface = @import("../../common/interfaces/device.zig").DeviceInterface;
+const common_interfaces = @import("common-interfaces");
+pub const TensorInterface = common_interfaces.TensorInterface;
+
+// Re-export engine interfaces
+const engine = @import("engine/engine.zig");
+pub const ModelInterface = engine.ModelInterface;
+pub const ModelImpl = engine.ModelImpl;
+pub const ModelMetadata = engine.ModelMetadata;
 
 /// Library version information
 pub const version = struct {
@@ -134,17 +138,17 @@ pub const SupportedOperators = enum {
     sqrt,
     exp,
     log,
-    
+
     // Matrix operations
     matmul,
     gemm,
     transpose,
-    
+
     // Convolution operators
     conv2d,
     conv3d,
     depthwise_conv2d,
-    
+
     // Activation functions
     relu,
     sigmoid,
@@ -152,23 +156,23 @@ pub const SupportedOperators = enum {
     softmax,
     gelu,
     swish,
-    
+
     // Pooling operators
     max_pool,
     avg_pool,
     global_avg_pool,
-    
+
     // Normalization operators
     batch_norm,
     layer_norm,
     instance_norm,
-    
+
     // Reduction operations
     reduce_sum,
     reduce_mean,
     reduce_max,
     reduce_min,
-    
+
     // Shape manipulation
     concat,
     split,
@@ -303,11 +307,11 @@ pub fn test_basic_functionality() !void {
     const allocator = gpa.allocator();
 
     // Test engine creation
-    var engine = try createEngine(allocator);
-    defer engine.deinit();
+    var test_engine = try createEngine(allocator);
+    defer test_engine.deinit();
 
     // Test operator registry
-    const op_count = engine.operator_registry.getOperatorCount();
+    const op_count = test_engine.operator_registry.getOperatorCount();
     std.log.info("Registered {} operators", .{op_count});
 
     // Test scheduler
@@ -348,10 +352,10 @@ test "engine creation" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var engine = try createEngine(allocator);
-    defer engine.deinit();
+    var test_engine = try createEngine(allocator);
+    defer test_engine.deinit();
 
-    const stats = engine.getStats();
+    const stats = test_engine.getStats();
     try std.testing.expect(!stats.model_loaded);
     try std.testing.expect(stats.total_inferences == 0);
 }

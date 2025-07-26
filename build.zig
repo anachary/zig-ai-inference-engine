@@ -16,23 +16,34 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Add ONNX parser as a module (Zig 0.11 syntax)
-    const onnx_parser_module = b.createModule(.{
-        .source_file = .{ .path = "projects/zig-onnx-parser/src/lib.zig" },
+    // Add common interfaces module first
+    const common_interfaces_module = b.createModule(.{
+        .source_file = .{ .path = "common/interfaces/tensor.zig" },
     });
-    cli_exe.addModule("zig-onnx-parser", onnx_parser_module);
-
-    // Add inference engine as a module
-    const inference_engine_module = b.createModule(.{
-        .source_file = .{ .path = "projects/zig-inference-engine/src/lib.zig" },
-    });
-    cli_exe.addModule("zig-inference-engine", inference_engine_module);
 
     // Add tensor core as a module
     const tensor_core_module = b.createModule(.{
         .source_file = .{ .path = "projects/zig-tensor-core/src/lib.zig" },
     });
+
+    // Add ONNX parser as a module (Zig 0.11 syntax)
+    const onnx_parser_module = b.createModule(.{
+        .source_file = .{ .path = "projects/zig-onnx-parser/src/lib.zig" },
+    });
+
+    // Add inference engine as a module with dependencies
+    const inference_engine_module = b.createModule(.{
+        .source_file = .{ .path = "projects/zig-inference-engine/src/lib.zig" },
+        .dependencies = &.{
+            .{ .name = "common-interfaces", .module = common_interfaces_module },
+        },
+    });
+
+    // Add modules to CLI executable
+    cli_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    cli_exe.addModule("zig-inference-engine", inference_engine_module);
     cli_exe.addModule("zig-tensor-core", tensor_core_module);
+    cli_exe.addModule("common-interfaces", common_interfaces_module);
 
     // Install the CLI
     b.installArtifact(cli_exe);

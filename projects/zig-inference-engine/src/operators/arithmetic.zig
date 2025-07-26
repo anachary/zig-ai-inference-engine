@@ -2,7 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 // Import common interfaces and registry
-const TensorInterface = @import("../../../common/interfaces/tensor.zig").TensorInterface;
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
 const OperatorInfo = @import("registry.zig").OperatorInfo;
 const OperatorFn = @import("registry.zig").OperatorFn;
 const ValidatorFn = @import("registry.zig").ValidatorFn;
@@ -32,7 +33,7 @@ pub const Add = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         if (inputs.len != 2 or outputs.len != 1) {
             return error.InvalidInputOutput;
         }
@@ -57,7 +58,7 @@ pub const Add = struct {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const b_f32 = std.mem.bytesAsSlice(f32, b_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f32[i] = a_f32[i] + b_f32[i];
                 }
@@ -66,7 +67,7 @@ pub const Add = struct {
                 const a_f16 = std.mem.bytesAsSlice(f16, a_data);
                 const b_f16 = std.mem.bytesAsSlice(f16, b_data);
                 const c_f16 = std.mem.bytesAsSlice(f16, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f16[i] = a_f16[i] + b_f16[i];
                 }
@@ -75,7 +76,7 @@ pub const Add = struct {
                 const a_i32 = std.mem.bytesAsSlice(i32, a_data);
                 const b_i32 = std.mem.bytesAsSlice(i32, b_data);
                 const c_i32 = std.mem.bytesAsSlice(i32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_i32[i] = a_i32[i] + b_i32[i];
                 }
@@ -90,7 +91,7 @@ pub const Add = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         if (input_shapes.len != 2) {
             return error.InvalidInputCount;
         }
@@ -135,7 +136,7 @@ pub const Sub = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         if (inputs.len != 2 or outputs.len != 1) {
             return error.InvalidInputOutput;
         }
@@ -154,7 +155,7 @@ pub const Sub = struct {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const b_f32 = std.mem.bytesAsSlice(f32, b_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f32[i] = a_f32[i] - b_f32[i];
                 }
@@ -163,7 +164,7 @@ pub const Sub = struct {
                 const a_f16 = std.mem.bytesAsSlice(f16, a_data);
                 const b_f16 = std.mem.bytesAsSlice(f16, b_data);
                 const c_f16 = std.mem.bytesAsSlice(f16, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f16[i] = a_f16[i] - b_f16[i];
                 }
@@ -172,7 +173,7 @@ pub const Sub = struct {
                 const a_i32 = std.mem.bytesAsSlice(i32, a_data);
                 const b_i32 = std.mem.bytesAsSlice(i32, b_data);
                 const c_i32 = std.mem.bytesAsSlice(i32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_i32[i] = a_i32[i] - b_i32[i];
                 }
@@ -187,7 +188,7 @@ pub const Sub = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         if (input_shapes.len != 2) {
             return error.InvalidInputCount;
         }
@@ -224,7 +225,7 @@ pub const Mul = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const a = &inputs[0];
         const b = &inputs[1];
         const c = &outputs[0];
@@ -239,7 +240,7 @@ pub const Mul = struct {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const b_f32 = std.mem.bytesAsSlice(f32, b_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f32[i] = a_f32[i] * b_f32[i];
                 }
@@ -254,7 +255,7 @@ pub const Mul = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         const output_shape = try broadcastShapes(allocator, input_shapes[0], input_shapes[1]);
         var result = try allocator.alloc([]usize, 1);
         result[0] = output_shape;
@@ -287,7 +288,7 @@ pub const Div = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const a = &inputs[0];
         const b = &inputs[1];
         const c = &outputs[0];
@@ -302,7 +303,7 @@ pub const Div = struct {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const b_f32 = std.mem.bytesAsSlice(f32, b_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     if (b_f32[i] == 0.0) {
                         return error.DivisionByZero;
@@ -320,7 +321,7 @@ pub const Div = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         const output_shape = try broadcastShapes(allocator, input_shapes[0], input_shapes[1]);
         var result = try allocator.alloc([]usize, 1);
         result[0] = output_shape;
@@ -353,7 +354,7 @@ pub const Pow = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const a = &inputs[0];
         const b = &inputs[1];
         const c = &outputs[0];
@@ -368,7 +369,7 @@ pub const Pow = struct {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const b_f32 = std.mem.bytesAsSlice(f32, b_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f32[i] = std.math.pow(f32, a_f32[i], b_f32[i]);
                 }
@@ -383,7 +384,7 @@ pub const Pow = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         const output_shape = try broadcastShapes(allocator, input_shapes[0], input_shapes[1]);
         var result = try allocator.alloc([]usize, 1);
         result[0] = output_shape;
@@ -416,7 +417,7 @@ pub const Sqrt = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const a = &inputs[0];
         const c = &outputs[0];
 
@@ -428,7 +429,7 @@ pub const Sqrt = struct {
             .f32 => {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     if (a_f32[i] < 0.0) {
                         return error.InvalidInput;
@@ -446,7 +447,7 @@ pub const Sqrt = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         if (input_shapes.len != 1) {
             return error.InvalidInputCount;
         }
@@ -482,7 +483,7 @@ pub const Exp = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const a = &inputs[0];
         const c = &outputs[0];
 
@@ -494,7 +495,7 @@ pub const Exp = struct {
             .f32 => {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     c_f32[i] = std.math.exp(a_f32[i]);
                 }
@@ -509,7 +510,7 @@ pub const Exp = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -541,7 +542,7 @@ pub const Log = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const a = &inputs[0];
         const c = &outputs[0];
 
@@ -553,7 +554,7 @@ pub const Log = struct {
             .f32 => {
                 const a_f32 = std.mem.bytesAsSlice(f32, a_data);
                 const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-                
+
                 for (0..numel) |i| {
                     if (a_f32[i] <= 0.0) {
                         return error.InvalidInput;
@@ -571,7 +572,7 @@ pub const Log = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -581,11 +582,11 @@ pub const Log = struct {
 // Helper functions
 fn shapesCompatible(shape_a: []const usize, shape_b: []const usize) bool {
     if (shape_a.len != shape_b.len) return false;
-    
+
     for (shape_a, shape_b) |a, b| {
         if (a != b) return false;
     }
-    
+
     return true;
 }
 
@@ -595,6 +596,6 @@ fn broadcastShapes(allocator: Allocator, shape_a: []const usize, shape_b: []cons
     if (!shapesCompatible(shape_a, shape_b)) {
         return error.IncompatibleShapes;
     }
-    
+
     return allocator.dupe(usize, shape_a);
 }

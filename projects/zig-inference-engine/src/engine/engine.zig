@@ -1,22 +1,23 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// Import tensor core for interfaces
-const tensor_core = @import("zig-tensor-core");
-const TensorInterface = tensor_core.TensorInterface;
+// Import common interfaces
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
 
 // Define basic interfaces for the engine
-const ModelInterface = struct {
+pub const ModelInterface = struct {
     ctx: *anyopaque,
     impl: *const ModelImpl,
 };
 
-const ModelImpl = struct {
+pub const ModelImpl = struct {
     validateFn: *const fn (ctx: *anyopaque, model: *anyopaque) anyerror!void,
     getMetadataFn: *const fn (ctx: *anyopaque) anyerror!ModelMetadata,
+    freeFn: *const fn (ctx: *anyopaque, model: *anyopaque) void,
 };
 
-const ModelMetadata = struct {
+pub const ModelMetadata = struct {
     name: []const u8,
     input_count: usize,
     output_count: usize,
@@ -25,6 +26,11 @@ const ModelMetadata = struct {
 const DeviceInterface = struct {
     device_type: DeviceType,
     device_id: u32,
+
+    pub fn deinitialize(self: *DeviceInterface) void {
+        _ = self;
+        // Device cleanup would be implemented here
+    }
 };
 
 // Import other modules (will be implemented)
@@ -335,18 +341,14 @@ pub const Engine = struct {
     }
 
     fn buildExecutionGraph(self: *Self, model: *anyopaque, model_interface: ModelInterface) !ExecutionGraph {
+        _ = model;
         _ = model_interface;
-
-        // Cast model to ONNX model type
-        const onnx_parser = @import("zig-onnx-parser");
-        const onnx_model = @as(*onnx_parser.Model, @ptrCast(@alignCast(model)));
 
         var graph = ExecutionGraph.init(self.allocator);
 
-        // Get model metadata to understand structure
-        const metadata = onnx_model.getMetadata();
-        std.log.info("Building execution graph for model: {s}", .{metadata.name});
-        std.log.info("Model has {} inputs and {} outputs", .{ metadata.input_count, metadata.output_count });
+        // For now, create a simple placeholder execution graph
+        std.log.info("Building execution graph for model", .{});
+        std.log.info("Using placeholder execution graph", .{});
 
         // For now, create a simple execution order
         // TODO: Implement proper topological sorting and optimization
@@ -363,7 +365,7 @@ pub const Engine = struct {
 
         // TODO: Implement operator fusion, memory optimization, etc.
         // For now, just log that optimization happened
-        std.log.info("Graph optimization completed");
+        std.log.info("Graph optimization completed", .{});
     }
 
     fn executeModel(self: *Self, inputs: []const TensorInterface) ![]TensorInterface {
@@ -371,24 +373,11 @@ pub const Engine = struct {
             return EngineError.ModelNotLoaded;
         }
 
-        // Cast model to ONNX model type
-        const onnx_parser = @import("zig-onnx-parser");
-        const onnx_model = @as(*onnx_parser.Model, @ptrCast(@alignCast(self.loaded_model.?)));
-
         std.log.info("Executing model inference with {} inputs", .{inputs.len});
 
-        // Get model metadata
-        const metadata = onnx_model.getMetadata();
-
-        // Validate input count
-        if (inputs.len != metadata.input_count) {
-            std.log.err("Expected {} inputs, got {}", .{ metadata.input_count, inputs.len });
-            return EngineError.InvalidInput;
-        }
-
-        // For now, create mock outputs based on model metadata
-        // TODO: Implement actual ONNX graph execution
-        var outputs = try self.allocator.alloc(TensorInterface, metadata.output_count);
+        // For now, create mock outputs (placeholder implementation)
+        // TODO: Implement actual model graph execution
+        var outputs = try self.allocator.alloc(TensorInterface, 1); // Assume 1 output for now
 
         for (outputs, 0..) |*output, i| {
             // Create a simple output tensor

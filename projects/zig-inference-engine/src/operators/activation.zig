@@ -2,7 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 // Import common interfaces and registry
-const TensorInterface = @import("../../../common/interfaces/tensor.zig").TensorInterface;
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
 const OperatorInfo = @import("registry.zig").OperatorInfo;
 const OperatorFn = @import("registry.zig").OperatorFn;
 const ValidatorFn = @import("registry.zig").ValidatorFn;
@@ -32,7 +33,7 @@ pub const ReLU = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         if (inputs.len != 1 or outputs.len != 1) {
             return error.InvalidInputOutput;
         }
@@ -48,7 +49,7 @@ pub const ReLU = struct {
             .f32 => {
                 const in_f32 = std.mem.bytesAsSlice(f32, input_data);
                 const out_f32 = std.mem.bytesAsSlice(f32, output_data);
-                
+
                 for (0..numel) |i| {
                     out_f32[i] = @max(0.0, in_f32[i]);
                 }
@@ -56,7 +57,7 @@ pub const ReLU = struct {
             .f16 => {
                 const in_f16 = std.mem.bytesAsSlice(f16, input_data);
                 const out_f16 = std.mem.bytesAsSlice(f16, output_data);
-                
+
                 for (0..numel) |i| {
                     out_f16[i] = @max(0.0, in_f16[i]);
                 }
@@ -71,7 +72,7 @@ pub const ReLU = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         if (input_shapes.len != 1) {
             return error.InvalidInputCount;
         }
@@ -107,7 +108,7 @@ pub const Sigmoid = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const input = &inputs[0];
         const output = &outputs[0];
 
@@ -119,7 +120,7 @@ pub const Sigmoid = struct {
             .f32 => {
                 const in_f32 = std.mem.bytesAsSlice(f32, input_data);
                 const out_f32 = std.mem.bytesAsSlice(f32, output_data);
-                
+
                 for (0..numel) |i| {
                     out_f32[i] = 1.0 / (1.0 + std.math.exp(-in_f32[i]));
                 }
@@ -127,7 +128,7 @@ pub const Sigmoid = struct {
             .f16 => {
                 const in_f16 = std.mem.bytesAsSlice(f16, input_data);
                 const out_f16 = std.mem.bytesAsSlice(f16, output_data);
-                
+
                 for (0..numel) |i| {
                     out_f16[i] = 1.0 / (1.0 + std.math.exp(-in_f16[i]));
                 }
@@ -142,7 +143,7 @@ pub const Sigmoid = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -174,7 +175,7 @@ pub const Tanh = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const input = &inputs[0];
         const output = &outputs[0];
 
@@ -186,7 +187,7 @@ pub const Tanh = struct {
             .f32 => {
                 const in_f32 = std.mem.bytesAsSlice(f32, input_data);
                 const out_f32 = std.mem.bytesAsSlice(f32, output_data);
-                
+
                 for (0..numel) |i| {
                     out_f32[i] = std.math.tanh(in_f32[i]);
                 }
@@ -201,7 +202,7 @@ pub const Tanh = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -232,7 +233,7 @@ pub const Softmax = struct {
         allocator: Allocator,
     ) anyerror!void {
         _ = allocator;
-        
+
         const input = &inputs[0];
         const output = &outputs[0];
 
@@ -253,7 +254,7 @@ pub const Softmax = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -285,7 +286,7 @@ pub const GELU = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const input = &inputs[0];
         const output = &outputs[0];
 
@@ -297,7 +298,7 @@ pub const GELU = struct {
             .f32 => {
                 const in_f32 = std.mem.bytesAsSlice(f32, input_data);
                 const out_f32 = std.mem.bytesAsSlice(f32, output_data);
-                
+
                 for (0..numel) |i| {
                     const x = in_f32[i];
                     // Approximation: GELU(x) ≈ 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))
@@ -316,7 +317,7 @@ pub const GELU = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -348,7 +349,7 @@ pub const Swish = struct {
     ) anyerror!void {
         _ = attributes;
         _ = allocator;
-        
+
         const input = &inputs[0];
         const output = &outputs[0];
 
@@ -360,7 +361,7 @@ pub const Swish = struct {
             .f32 => {
                 const in_f32 = std.mem.bytesAsSlice(f32, input_data);
                 const out_f32 = std.mem.bytesAsSlice(f32, output_data);
-                
+
                 for (0..numel) |i| {
                     const x = in_f32[i];
                     const sigmoid_x = 1.0 / (1.0 + std.math.exp(-x));
@@ -377,7 +378,7 @@ pub const Swish = struct {
         allocator: Allocator,
     ) anyerror![][]usize {
         _ = attributes;
-        
+
         var result = try allocator.alloc([]usize, 1);
         result[0] = try allocator.dupe(usize, input_shapes[0]);
         return result;
@@ -390,15 +391,15 @@ fn softmaxF32(input: *const TensorInterface, output: *const TensorInterface, axi
     const input_data = std.mem.bytesAsSlice(f32, input.data());
     const output_data = std.mem.bytesAsSlice(f32, output.data());
     const shape = input.shape();
-    
+
     if (axis >= shape.len) {
         return error.InvalidAxis;
     }
-    
+
     const axis_size = shape[axis];
     const outer_size = calculateOuterSize(shape, axis);
     const inner_size = calculateInnerSize(shape, axis);
-    
+
     for (0..outer_size) |outer| {
         for (0..inner_size) |inner| {
             // Find maximum for numerical stability
@@ -407,7 +408,7 @@ fn softmaxF32(input: *const TensorInterface, output: *const TensorInterface, axi
                 const idx = outer * axis_size * inner_size + i * inner_size + inner;
                 max_val = @max(max_val, input_data[idx]);
             }
-            
+
             // Compute exponentials and sum
             var sum: f32 = 0.0;
             for (0..axis_size) |i| {
@@ -416,7 +417,7 @@ fn softmaxF32(input: *const TensorInterface, output: *const TensorInterface, axi
                 output_data[idx] = exp_val;
                 sum += exp_val;
             }
-            
+
             // Normalize
             for (0..axis_size) |i| {
                 const idx = outer * axis_size * inner_size + i * inner_size + inner;
@@ -430,11 +431,11 @@ fn parseAxisAttribute(attributes: std.StringHashMap([]const u8), key: []const u8
     if (attributes.get(key)) |value| {
         if (std.fmt.parseInt(i32, value, 10)) |axis| {
             // Handle negative axis
-            const normalized_axis = if (axis < 0) 
+            const normalized_axis = if (axis < 0)
                 @as(usize, @intCast(@as(i32, @intCast(ndim)) + axis))
-            else 
+            else
                 @as(usize, @intCast(axis));
-            
+
             if (normalized_axis < ndim) {
                 return normalized_axis;
             }

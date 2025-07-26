@@ -2,8 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 // Import common interfaces
-const tensor_core = @import("zig-tensor-core");
-const TensorInterface = tensor_core.TensorInterface;
+const common_interfaces = @import("common-interfaces");
+const TensorInterface = common_interfaces.TensorInterface;
 // ModelInterface will be defined locally for now
 
 /// Operator function signature
