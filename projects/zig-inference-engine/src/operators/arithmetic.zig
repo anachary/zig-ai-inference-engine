@@ -32,7 +32,6 @@ pub const Add = struct {
         allocator: Allocator,
     ) anyerror!void {
         _ = attributes;
-        _ = allocator;
 
         if (inputs.len != 2 or outputs.len != 1) {
             return error.InvalidInputOutput;
@@ -40,46 +39,32 @@ pub const Add = struct {
 
         const a = &inputs[0];
         const b = &inputs[1];
-        const c = &outputs[0];
+        var c = &outputs[0];
 
         // Check shapes are compatible
         if (!shapesCompatible(a.shape(), b.shape())) {
             return error.IncompatibleShapes;
         }
 
-        // Perform element-wise addition
-        const numel = a.numel();
-        const a_data = a.data();
-        const b_data = b.data();
-        const c_data = c.data();
+        // Perform element-wise addition using tensor interface
+        const a_shape = a.shape();
+        const output_shape = try broadcastShapes(allocator, a_shape, b.shape());
+        defer allocator.free(output_shape);
+
+        // For now, implement simple element-wise addition for same-shaped tensors
+        if (!shapesCompatible(a_shape, b.shape())) {
+            return error.IncompatibleShapes;
+        }
 
         switch (a.dtype()) {
             .f32 => {
-                const a_f32 = std.mem.bytesAsSlice(f32, a_data);
-                const b_f32 = std.mem.bytesAsSlice(f32, b_data);
-                const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-
-                for (0..numel) |i| {
-                    c_f32[i] = a_f32[i] + b_f32[i];
-                }
+                try addF32Tensors(a, b, c);
             },
             .f16 => {
-                const a_f16 = std.mem.bytesAsSlice(f16, a_data);
-                const b_f16 = std.mem.bytesAsSlice(f16, b_data);
-                const c_f16 = std.mem.bytesAsSlice(f16, c_data);
-
-                for (0..numel) |i| {
-                    c_f16[i] = a_f16[i] + b_f16[i];
-                }
+                try addF16Tensors(a, b, c);
             },
             .i32 => {
-                const a_i32 = std.mem.bytesAsSlice(i32, a_data);
-                const b_i32 = std.mem.bytesAsSlice(i32, b_data);
-                const c_i32 = std.mem.bytesAsSlice(i32, c_data);
-
-                for (0..numel) |i| {
-                    c_i32[i] = a_i32[i] + b_i32[i];
-                }
+                try addI32Tensors(a, b, c);
             },
             else => return error.UnsupportedDataType,
         }
@@ -143,40 +128,22 @@ pub const Sub = struct {
 
         const a = &inputs[0];
         const b = &inputs[1];
-        const c = &outputs[0];
+        var c = &outputs[0];
 
-        const numel = a.numel();
-        const a_data = a.data();
-        const b_data = b.data();
-        const c_data = c.data();
+        // Check shapes are compatible
+        if (!shapesCompatible(a.shape(), b.shape())) {
+            return error.IncompatibleShapes;
+        }
 
         switch (a.dtype()) {
             .f32 => {
-                const a_f32 = std.mem.bytesAsSlice(f32, a_data);
-                const b_f32 = std.mem.bytesAsSlice(f32, b_data);
-                const c_f32 = std.mem.bytesAsSlice(f32, c_data);
-
-                for (0..numel) |i| {
-                    c_f32[i] = a_f32[i] - b_f32[i];
-                }
+                try subF32Tensors(a, b, c);
             },
             .f16 => {
-                const a_f16 = std.mem.bytesAsSlice(f16, a_data);
-                const b_f16 = std.mem.bytesAsSlice(f16, b_data);
-                const c_f16 = std.mem.bytesAsSlice(f16, c_data);
-
-                for (0..numel) |i| {
-                    c_f16[i] = a_f16[i] - b_f16[i];
-                }
+                try subF16Tensors(a, b, c);
             },
             .i32 => {
-                const a_i32 = std.mem.bytesAsSlice(i32, a_data);
-                const b_i32 = std.mem.bytesAsSlice(i32, b_data);
-                const c_i32 = std.mem.bytesAsSlice(i32, c_data);
-
-                for (0..numel) |i| {
-                    c_i32[i] = a_i32[i] - b_i32[i];
-                }
+                try subI32Tensors(a, b, c);
             },
             else => return error.UnsupportedDataType,
         }
@@ -598,4 +565,134 @@ fn broadcastShapes(allocator: Allocator, shape_a: []const usize, shape_b: []cons
     }
 
     return allocator.dupe(usize, shape_a);
+}
+
+// Helper functions for type-specific tensor operations
+fn addF32Tensors(a: *const TensorInterface, b: *const TensorInterface, c: *TensorInterface) !void {
+    const a_shape = a.shape();
+
+    // Calculate total elements
+    var total_elements: usize = 1;
+    for (a_shape) |dim| {
+        total_elements *= dim;
+    }
+
+    // Perform element-wise addition using tensor interface
+    for (0..total_elements) |i| {
+        const indices = try flatIndexToIndices(a_shape, i);
+        defer std.heap.page_allocator.free(indices);
+
+        const a_val = try a.getF32(indices);
+        const b_val = try b.getF32(indices);
+        try c.setF32(indices, a_val + b_val);
+    }
+}
+
+fn addF16Tensors(a: *const TensorInterface, b: *const TensorInterface, c: *TensorInterface) !void {
+    // Similar to addF32Tensors but for f16
+    // For now, convert through f32 since TensorInterface doesn't have getF16/setF16
+    const a_shape = a.shape();
+
+    var total_elements: usize = 1;
+    for (a_shape) |dim| {
+        total_elements *= dim;
+    }
+
+    for (0..total_elements) |i| {
+        const indices = try flatIndexToIndices(a_shape, i);
+        defer std.heap.page_allocator.free(indices);
+
+        const a_val = try a.getF32(indices);
+        const b_val = try b.getF32(indices);
+        try c.setF32(indices, a_val + b_val);
+    }
+}
+
+fn addI32Tensors(a: *const TensorInterface, b: *const TensorInterface, c: *TensorInterface) !void {
+    // Similar to addF32Tensors but for i32
+    // For now, convert through f32 since TensorInterface doesn't have getI32/setI32
+    const a_shape = a.shape();
+
+    var total_elements: usize = 1;
+    for (a_shape) |dim| {
+        total_elements *= dim;
+    }
+
+    for (0..total_elements) |i| {
+        const indices = try flatIndexToIndices(a_shape, i);
+        defer std.heap.page_allocator.free(indices);
+
+        const a_val = try a.getF32(indices);
+        const b_val = try b.getF32(indices);
+        try c.setF32(indices, a_val + b_val);
+    }
+}
+
+// Subtraction helper functions
+fn subF32Tensors(a: *const TensorInterface, b: *const TensorInterface, c: *TensorInterface) !void {
+    const a_shape = a.shape();
+
+    var total_elements: usize = 1;
+    for (a_shape) |dim| {
+        total_elements *= dim;
+    }
+
+    for (0..total_elements) |i| {
+        const indices = try flatIndexToIndices(a_shape, i);
+        defer std.heap.page_allocator.free(indices);
+
+        const a_val = try a.getF32(indices);
+        const b_val = try b.getF32(indices);
+        try c.setF32(indices, a_val - b_val);
+    }
+}
+
+fn subF16Tensors(a: *const TensorInterface, b: *const TensorInterface, c: *TensorInterface) !void {
+    const a_shape = a.shape();
+
+    var total_elements: usize = 1;
+    for (a_shape) |dim| {
+        total_elements *= dim;
+    }
+
+    for (0..total_elements) |i| {
+        const indices = try flatIndexToIndices(a_shape, i);
+        defer std.heap.page_allocator.free(indices);
+
+        const a_val = try a.getF32(indices);
+        const b_val = try b.getF32(indices);
+        try c.setF32(indices, a_val - b_val);
+    }
+}
+
+fn subI32Tensors(a: *const TensorInterface, b: *const TensorInterface, c: *TensorInterface) !void {
+    const a_shape = a.shape();
+
+    var total_elements: usize = 1;
+    for (a_shape) |dim| {
+        total_elements *= dim;
+    }
+
+    for (0..total_elements) |i| {
+        const indices = try flatIndexToIndices(a_shape, i);
+        defer std.heap.page_allocator.free(indices);
+
+        const a_val = try a.getF32(indices);
+        const b_val = try b.getF32(indices);
+        try c.setF32(indices, a_val - b_val);
+    }
+}
+
+fn flatIndexToIndices(shape: []const usize, flat_index: usize) ![]usize {
+    var indices = try std.heap.page_allocator.alloc(usize, shape.len);
+    var remaining = flat_index;
+
+    var i = shape.len;
+    while (i > 0) {
+        i -= 1;
+        indices[i] = remaining % shape[i];
+        remaining /= shape[i];
+    }
+
+    return indices;
 }

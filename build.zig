@@ -48,6 +48,23 @@ pub fn build(b: *std.Build) void {
     // Install the CLI
     b.installArtifact(cli_exe);
 
+    // Create test executable
+    const test_exe = b.addTest(.{
+        .name = "test-operators",
+        .root_source_file = .{ .path = "tests/test_operators.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to test executable
+    test_exe.addModule("zig-inference-engine", inference_engine_module);
+    test_exe.addModule("zig-tensor-core", tensor_core_module);
+    test_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create operator test step
+    const operator_test_step = b.step("test-operators", "Run operator tests");
+    operator_test_step.dependOn(&b.addRunArtifact(test_exe).step);
+
     // Create run step for the CLI
     const cli_run = b.addRunArtifact(cli_exe);
     cli_run.step.dependOn(b.getInstallStep());
