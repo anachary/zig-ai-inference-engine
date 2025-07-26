@@ -2,32 +2,51 @@
 
 Welcome to the comprehensive documentation for the Zig AI Distributed Inference Platform. This documentation follows the [Diátaxis framework](https://diataxis.fr/) for clear, user-focused organization.
 
-## 📚 Documentation Structure
+## 📚 Documentation Structure (Diátaxis Framework)
 
-### 🚀 **[Getting Started](getting-started.md)**
-New to Zig AI? Start here for a quick introduction and setup guide.
+The documentation is organized into four distinct types based on user needs and learning contexts:
 
-### 🧠 **[Concepts](concepts/)**
-Understand the architecture, design principles, and core concepts behind the platform.
+### 📖 **[Tutorials](tutorials/)** - *Learning-oriented*
+Step-by-step lessons for newcomers to learn by doing. These hands-on guides teach through practical examples.
 
-### 📖 **[Tutorials](tutorials/)**
-Step-by-step learning guides to get you up and running quickly.
+### 🎯 **[How-to Guides](how-to-guides/)** - *Problem-oriented*
+Goal-oriented guides that solve specific real-world problems. Find practical solutions to common tasks.
 
-### 🎯 **[How-to Guides](how-to-guides/)**
-Goal-oriented guides for specific tasks and deployment scenarios.
+### 📋 **[Reference](reference/)** - *Information-oriented*
+Technical specifications, API documentation, and comprehensive details. Authoritative information for when you need facts.
 
-### 📋 **[Reference](reference/)**
-Technical reference documentation including APIs, CLI commands, and specifications.
+### 🧠 **[Concepts](concepts/)** - *Understanding-oriented*
+Explanatory guides that clarify the "why" behind design decisions. Understand the architecture and philosophy.
 
-### 🤝 **[Community](community/)**
+---
+
+### 🚀 **[Getting Started](getting-started.md)** - *Quick Entry Point*
+New to Zig AI? Start here for a 5-minute overview and setup guide.
+
+### 🤝 **[Community](community/)** - *Collaboration*
 Guidelines for contributing, maintaining documentation, and community involvement.
 
-## 🎯 Quick Navigation
+## 🎯 Quick Navigation by User Need
 
-### 🌱 **New Users**
+### 🌱 **New to Zig AI?** (Learning-oriented)
 1. [Getting Started](getting-started.md) - 5-minute overview
-2. [IoT Quick Start](tutorials/iot-quick-start.md) - 15-minute hands-on tutorial
-3. [Architecture Overview](concepts/architecture-overview.md) - Understand the system
+2. [Zero-Dependency Deployment](tutorials/zero-dependency-deployment.md) - Learn by deploying
+3. [IoT Quick Start](tutorials/iot-quick-start.md) - Hands-on edge deployment
+
+### 🔧 **Need to Solve a Problem?** (Problem-oriented)
+1. [Enable Zero-Dependency GPU](how-to-guides/enable-zero-dependency-gpu.md) - GPU without dependencies
+2. [Optimize Performance](how-to-guides/performance-optimization.md) - Speed up inference
+3. [Deploy on Kubernetes](how-to-guides/kubernetes-deployment.md) - Container orchestration
+
+### 📚 **Looking for Technical Details?** (Information-oriented)
+1. [Zero-Dependency API](reference/zero-dependency-api.md) - Complete API reference
+2. [Performance Benchmarks](reference/benchmarks.md) - Detailed performance data
+3. [Configuration Reference](reference/configuration.md) - All configuration options
+
+### 🧠 **Want to Understand the Design?** (Understanding-oriented)
+1. [Zero-Dependency Design](explanation/zero-dependency-design.md) - Why zero dependencies?
+2. [Architecture Overview](concepts/architecture-overview.md) - How it all works
+3. [Performance Strategy](explanation/performance-strategy.md) - Our optimization approach
 
 ### 🚀 **Developers**
 1. [Architecture Design](concepts/architecture-design.md) - Design principles
