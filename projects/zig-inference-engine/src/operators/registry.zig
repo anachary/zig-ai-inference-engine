@@ -66,7 +66,9 @@ pub const OperatorRegistry = struct {
     /// Register a new operator
     pub fn registerOperator(self: *Self, info: OperatorInfo) !void {
         if (self.operators.contains(info.name)) {
-            return RegistryError.OperatorAlreadyExists;
+            // Allow re-registration of the same operator (idempotent)
+            std.log.debug("Operator '{s}' already registered, skipping", .{info.name});
+            return;
         }
 
         try self.operators.put(info.name, info);
@@ -113,6 +115,11 @@ pub const OperatorRegistry = struct {
 
     /// Register all built-in operators
     pub fn registerBuiltinOperators(self: *Self) !void {
+        // Check if operators are already registered
+        if (self.operators.count() > 0) {
+            std.log.debug("Built-in operators already registered ({} operators), skipping", .{self.operators.count()});
+            return;
+        }
         // Import operator implementations
         const arithmetic = @import("arithmetic.zig");
         const matrix = @import("matrix.zig");

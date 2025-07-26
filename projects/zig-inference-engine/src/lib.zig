@@ -106,6 +106,12 @@ pub const operators = struct {
 // Re-export tokenizer
 pub const SimpleTokenizer = @import("tokenizer/simple_tokenizer.zig").SimpleTokenizer;
 
+// Re-export LLM support
+pub const LLMEngine = @import("models/llm_support.zig").LLMEngine;
+pub const LLMConfig = @import("models/llm_support.zig").LLMConfig;
+pub const GenerationConfig = @import("models/llm_support.zig").GenerationConfig;
+pub const RealLLMLoader = @import("models/real_llm_loader.zig").RealLLMLoader;
+
 // Import common interfaces for re-export
 const common_interfaces = @import("common-interfaces");
 pub const TensorInterface = common_interfaces.TensorInterface;

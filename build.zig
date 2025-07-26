@@ -153,6 +153,72 @@ pub fn build(b: *std.Build) void {
     const benchmark_step = b.step("benchmark", "Run comprehensive performance benchmarks");
     benchmark_step.dependOn(&b.addRunArtifact(benchmark_exe).step);
 
+    // Create LLM chat executable
+    const llm_chat_exe = b.addExecutable(.{
+        .name = "llm-chat",
+        .root_source_file = .{ .path = "llm_chat.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to LLM chat executable
+    llm_chat_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    llm_chat_exe.addModule("zig-inference-engine", inference_engine_module);
+    llm_chat_exe.addModule("zig-tensor-core", tensor_core_module);
+    llm_chat_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create LLM chat step
+    const llm_chat_step = b.step("llm-chat", "Run LLM chat interface");
+    llm_chat_step.dependOn(&b.addRunArtifact(llm_chat_exe).step);
+
+    // Create simple LLM demo executable
+    const simple_llm_exe = b.addExecutable(.{
+        .name = "simple-llm-demo",
+        .root_source_file = .{ .path = "simple_llm_demo.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Create simple LLM demo step
+    const simple_llm_step = b.step("llm-demo", "Run simple LLM demo");
+    simple_llm_step.dependOn(&b.addRunArtifact(simple_llm_exe).step);
+
+    // Create tiny model downloader executable
+    const tiny_model_exe = b.addExecutable(.{
+        .name = "download-tiny-model",
+        .root_source_file = .{ .path = "download_tiny_model.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Create tiny model downloader step
+    const tiny_model_step = b.step("download-model", "Download and test tiny LLM models");
+    tiny_model_step.dependOn(&b.addRunArtifact(tiny_model_exe).step);
+
+    // Create Qwen interactive chat executable
+    const qwen_chat_exe = b.addExecutable(.{
+        .name = "qwen-chat",
+        .root_source_file = .{ .path = "qwen_chat.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Create Qwen chat step
+    const qwen_chat_step = b.step("qwen-chat", "Start interactive chat with Qwen 0.5B");
+    qwen_chat_step.dependOn(&b.addRunArtifact(qwen_chat_exe).step);
+
+    // Create simple Qwen chat executable
+    const qwen_simple_exe = b.addExecutable(.{
+        .name = "qwen-simple-chat",
+        .root_source_file = .{ .path = "qwen_simple_chat.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Create simple Qwen chat step
+    const qwen_simple_step = b.step("qwen", "Start simple interactive chat with Qwen 0.5B");
+    qwen_simple_step.dependOn(&b.addRunArtifact(qwen_simple_exe).step);
+
     // Create run step for the CLI
     const cli_run = b.addRunArtifact(cli_exe);
     cli_run.step.dependOn(b.getInstallStep());
