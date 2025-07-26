@@ -253,6 +253,139 @@ pub const ONNXTensor = struct {
     pub fn sizeBytes(self: *const ONNXTensor) usize {
         return self.numel() * self.data_type.sizeBytes();
     }
+
+    /// Extract tensor data as f32 array
+    pub fn extractF32Data(self: *const ONNXTensor, allocator: Allocator) ![]f32 {
+        if (self.raw_data.len == 0) {
+            return error.NoTensorData;
+        }
+
+        const num_elements = self.numel();
+        var result = try allocator.alloc(f32, num_elements);
+
+        switch (self.data_type) {
+            .float => {
+                if (self.raw_data.len != num_elements * 4) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert raw bytes to f32 (little-endian)
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 4 .. (i + 1) * 4];
+                    result[i] = @bitCast(std.mem.readIntLittle(u32, bytes[0..4]));
+                }
+            },
+            .double => {
+                if (self.raw_data.len != num_elements * 8) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert f64 to f32
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 8 .. (i + 1) * 8];
+                    const f64_val: f64 = @bitCast(std.mem.readIntLittle(u64, bytes[0..8]));
+                    result[i] = @floatCast(f64_val);
+                }
+            },
+            .int32 => {
+                if (self.raw_data.len != num_elements * 4) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert i32 to f32
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 4 .. (i + 1) * 4];
+                    const i32_val = std.mem.readIntLittle(i32, bytes[0..4]);
+                    result[i] = @floatFromInt(i32_val);
+                }
+            },
+            .int64 => {
+                if (self.raw_data.len != num_elements * 8) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert i64 to f32
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 8 .. (i + 1) * 8];
+                    const i64_val = std.mem.readIntLittle(i64, bytes[0..8]);
+                    result[i] = @floatFromInt(i64_val);
+                }
+            },
+            else => {
+                allocator.free(result);
+                return error.UnsupportedDataType;
+            },
+        }
+
+        return result;
+    }
+
+    /// Extract tensor data as i32 array
+    pub fn extractI32Data(self: *const ONNXTensor, allocator: Allocator) ![]i32 {
+        if (self.raw_data.len == 0) {
+            return error.NoTensorData;
+        }
+
+        const num_elements = self.numel();
+        var result = try allocator.alloc(i32, num_elements);
+
+        switch (self.data_type) {
+            .int32 => {
+                if (self.raw_data.len != num_elements * 4) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert raw bytes to i32 (little-endian)
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 4 .. (i + 1) * 4];
+                    result[i] = std.mem.readIntLittle(i32, bytes[0..4]);
+                }
+            },
+            .int64 => {
+                if (self.raw_data.len != num_elements * 8) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert i64 to i32 (with bounds checking)
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 8 .. (i + 1) * 8];
+                    const i64_val = std.mem.readIntLittle(i64, bytes[0..8]);
+                    if (i64_val > std.math.maxInt(i32) or i64_val < std.math.minInt(i32)) {
+                        allocator.free(result);
+                        return error.IntegerOverflow;
+                    }
+                    result[i] = @intCast(i64_val);
+                }
+            },
+            .float => {
+                if (self.raw_data.len != num_elements * 4) {
+                    allocator.free(result);
+                    return error.InvalidDataSize;
+                }
+                // Convert f32 to i32
+                for (0..num_elements) |i| {
+                    const bytes = self.raw_data[i * 4 .. (i + 1) * 4];
+                    const f32_val: f32 = @bitCast(std.mem.readIntLittle(u32, bytes[0..4]));
+                    result[i] = @intFromFloat(f32_val);
+                }
+            },
+            else => {
+                allocator.free(result);
+                return error.UnsupportedDataType;
+            },
+        }
+
+        return result;
+    }
+
+    /// Get shape as usize array for tensor operations
+    pub fn getShape(self: *const ONNXTensor, allocator: Allocator) ![]usize {
+        var shape = try allocator.alloc(usize, self.dims.len);
+        for (self.dims, 0..) |dim, i| {
+            shape[i] = @intCast(@max(dim, 1));
+        }
+        return shape;
+    }
 };
 
 /// ONNX node representation
@@ -465,4 +598,123 @@ pub const ONNXModel = struct {
 
         self.graph.deinit(allocator);
     }
+
+    /// Get model metadata for inference engine
+    pub fn getMetadata(self: *const ONNXModel) ModelMetadata {
+        return ModelMetadata{
+            .name = self.producer_name,
+            .input_count = self.graph.inputs.items.len,
+            .output_count = self.graph.outputs.items.len,
+            .node_count = self.graph.nodes.items.len,
+            .initializer_count = self.graph.initializers.items.len,
+        };
+    }
+
+    /// Extract all model weights as tensor interfaces
+    pub fn extractWeights(self: *const ONNXModel, allocator: Allocator) !std.StringHashMap(WeightTensor) {
+        var weights = std.StringHashMap(WeightTensor).init(allocator);
+
+        for (self.graph.initializers.items) |*tensor| {
+            if (tensor.raw_data.len > 0) {
+                const shape = try tensor.getShape(allocator);
+                defer allocator.free(shape);
+
+                const weight_tensor = WeightTensor{
+                    .name = try allocator.dupe(u8, tensor.name),
+                    .shape = try allocator.dupe(usize, shape),
+                    .data_type = tensor.data_type,
+                    .data = try allocator.dupe(u8, tensor.raw_data),
+                };
+
+                try weights.put(weight_tensor.name, weight_tensor);
+            }
+        }
+
+        return weights;
+    }
+
+    /// Find weight tensor by name
+    pub fn getWeight(self: *const ONNXModel, name: []const u8) ?*const ONNXTensor {
+        for (self.graph.initializers.items) |*tensor| {
+            if (std.mem.eql(u8, tensor.name, name)) {
+                return tensor;
+            }
+        }
+        return null;
+    }
+
+    /// Get input tensor info
+    pub fn getInputInfo(self: *const ONNXModel, index: usize) ?InputInfo {
+        if (index >= self.graph.inputs.items.len) return null;
+
+        const input = &self.graph.inputs.items[index];
+        return InputInfo{
+            .name = input.name,
+            .data_type = if (input.type_info) |type_info| type_info.tensor_type.elem_type else .undefined,
+            .shape = if (input.type_info) |type_info| type_info.tensor_type.shape.dims else &[_]i64{},
+        };
+    }
+
+    /// Get output tensor info
+    pub fn getOutputInfo(self: *const ONNXModel, index: usize) ?OutputInfo {
+        if (index >= self.graph.outputs.items.len) return null;
+
+        const output = &self.graph.outputs.items[index];
+        return OutputInfo{
+            .name = output.name,
+            .data_type = if (output.type_info) |type_info| type_info.tensor_type.elem_type else .undefined,
+            .shape = if (output.type_info) |type_info| type_info.tensor_type.shape.dims else &[_]i64{},
+        };
+    }
+
+    /// Validate model for inference
+    pub fn validate(self: *const ONNXModel) !void {
+        if (self.graph.inputs.items.len == 0) {
+            return error.NoInputs;
+        }
+        if (self.graph.outputs.items.len == 0) {
+            return error.NoOutputs;
+        }
+        if (self.graph.nodes.items.len == 0) {
+            return error.NoNodes;
+        }
+        // Model is valid for inference
+    }
+};
+
+/// Model metadata for inference engine
+pub const ModelMetadata = struct {
+    name: []const u8,
+    input_count: usize,
+    output_count: usize,
+    node_count: usize,
+    initializer_count: usize,
+};
+
+/// Weight tensor representation
+pub const WeightTensor = struct {
+    name: []const u8,
+    shape: []usize,
+    data_type: ONNXDataType,
+    data: []const u8,
+
+    pub fn deinit(self: *WeightTensor, allocator: Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.shape);
+        allocator.free(self.data);
+    }
+};
+
+/// Input tensor information
+pub const InputInfo = struct {
+    name: []const u8,
+    data_type: ONNXDataType,
+    shape: []const i64,
+};
+
+/// Output tensor information
+pub const OutputInfo = struct {
+    name: []const u8,
+    data_type: ONNXDataType,
+    shape: []const i64,
 };

@@ -122,6 +122,7 @@ pub const OperatorRegistry = struct {
         const normalization = @import("normalization.zig");
         const reduction = @import("reduction.zig");
         const shape_ops = @import("shape.zig");
+        const advanced = @import("advanced.zig");
 
         // Register arithmetic operators
         try self.registerOperator(arithmetic.Add.getInfo());
@@ -175,6 +176,14 @@ pub const OperatorRegistry = struct {
         try self.registerOperator(shape_ops.Unsqueeze.getInfo());
         try self.registerOperator(shape_ops.Gather.getInfo());
         try self.registerOperator(shape_ops.Scatter.getInfo());
+        try self.registerOperator(shape_ops.Reshape.getInfo());
+        try self.registerOperator(shape_ops.Constant.getInfo());
+
+        // Register advanced operators for modern architectures
+        try self.registerOperator(advanced.LayerNorm.getInfo());
+        try self.registerOperator(advanced.Embedding.getInfo());
+        try self.registerOperator(advanced.MultiHeadAttention.getInfo());
+        try self.registerOperator(advanced.GELU.getInfo());
 
         std.log.info("Registered {} built-in operators", .{self.operators.count()});
     }

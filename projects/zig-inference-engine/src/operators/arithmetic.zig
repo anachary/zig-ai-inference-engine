@@ -41,8 +41,8 @@ pub const Add = struct {
         const b = &inputs[1];
         var c = &outputs[0];
 
-        // Check shapes are compatible
-        if (!shapesCompatible(a.shape(), b.shape())) {
+        // Check shapes are broadcastable
+        if (!canBroadcast(a.shape(), b.shape())) {
             return error.IncompatibleShapes;
         }
 
@@ -695,4 +695,48 @@ fn flatIndexToIndices(shape: []const usize, flat_index: usize) ![]usize {
     }
 
     return indices;
+}
+
+/// Check if two shapes are broadcastable according to NumPy rules
+fn canBroadcast(shape1: []const usize, shape2: []const usize) bool {
+    const max_ndim = @max(shape1.len, shape2.len);
+
+    var i: usize = 0;
+    while (i < max_ndim) : (i += 1) {
+        const dim1 = if (i < shape1.len) shape1[shape1.len - 1 - i] else 1;
+        const dim2 = if (i < shape2.len) shape2[shape2.len - 1 - i] else 1;
+
+        if (dim1 != dim2 and dim1 != 1 and dim2 != 1) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/// Compute broadcast shape for two input shapes
+fn broadcastShape(shape1: []const usize, shape2: []const usize, allocator: Allocator) ![]usize {
+    const max_ndim = @max(shape1.len, shape2.len);
+    var result_shape = try allocator.alloc(usize, max_ndim);
+
+    var i: usize = 0;
+    while (i < max_ndim) : (i += 1) {
+        const idx = max_ndim - 1 - i;
+
+        const dim1 = if (i < shape1.len) shape1[shape1.len - 1 - i] else 1;
+        const dim2 = if (i < shape2.len) shape2[shape2.len - 1 - i] else 1;
+
+        if (dim1 == dim2) {
+            result_shape[idx] = dim1;
+        } else if (dim1 == 1) {
+            result_shape[idx] = dim2;
+        } else if (dim2 == 1) {
+            result_shape[idx] = dim1;
+        } else {
+            allocator.free(result_shape);
+            return error.IncompatibleShapes;
+        }
+    }
+
+    return result_shape;
 }

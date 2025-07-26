@@ -1,0 +1,27 @@
+
+# Simple Add Model
+model_name: simple_add
+ir_version: 7
+producer: zig-ai-platform
+
+graph:
+  name: simple_add_graph
+  
+  inputs:
+    - name: A
+      type: float32
+      shape: [2, 3]
+    - name: B
+      type: float32
+      shape: [2, 3]
+  
+  outputs:
+    - name: C
+      type: float32
+      shape: [2, 3]
+  
+  nodes:
+    - name: add_node
+      op_type: Add
+      inputs: [A, B]
+      outputs: [C]

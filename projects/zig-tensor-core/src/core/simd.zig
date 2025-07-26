@@ -12,9 +12,35 @@ pub const SIMDError = error{
 pub fn isAvailable() bool {
     return switch (builtin.cpu.arch) {
         .x86_64 => std.Target.x86.featureSetHas(builtin.cpu.features, .sse) or
-            std.Target.x86.featureSetHas(builtin.cpu.features, .avx2),
+            std.Target.x86.featureSetHas(builtin.cpu.features, .avx2) or
+            std.Target.x86.featureSetHas(builtin.cpu.features, .avx512f),
         .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon),
         else => false,
+    };
+}
+
+/// Get optimal vector width for current platform
+pub fn getVectorWidth() usize {
+    return switch (builtin.cpu.arch) {
+        .x86_64 => {
+            if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx512f)) {
+                return 16; // AVX-512 processes 16 f32s at once
+            } else if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
+                return 8; // AVX2 processes 8 f32s at once
+            } else if (std.Target.x86.featureSetHas(builtin.cpu.features, .sse)) {
+                return 4; // SSE processes 4 f32s at once
+            } else {
+                return 1; // Scalar fallback
+            }
+        },
+        .aarch64 => {
+            if (std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon)) {
+                return 4; // NEON processes 4 f32s at once
+            } else {
+                return 1; // Scalar fallback
+            }
+        },
+        else => 1,
     };
 }
 
@@ -35,7 +61,9 @@ pub fn vectorAddF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
     }
 
     if (builtin.cpu.arch == .x86_64) {
-        if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
+        if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx512f)) {
+            return vectorAddF32AVX512(a, b, result);
+        } else if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
             return vectorAddF32AVX2(a, b, result);
         } else if (std.Target.x86.featureSetHas(builtin.cpu.features, .sse)) {
             return vectorAddF32SSE(a, b, result);
@@ -98,6 +126,25 @@ pub fn vectorDivF32(a: []const f32, b: []const f32, result: []f32) SIMDError!voi
 fn vectorAddF32Scalar(a: []const f32, b: []const f32, result: []f32) void {
     for (a, b, result) |a_val, b_val, *r| {
         r.* = a_val + b_val;
+    }
+}
+
+/// AVX-512 implementation of vector addition
+fn vectorAddF32AVX512(a: []const f32, b: []const f32, result: []f32) void {
+    const vec_size = 16; // AVX-512 processes 16 f32s at once
+    var i: usize = 0;
+
+    // Process 16 elements at a time
+    while (i + vec_size <= a.len) : (i += vec_size) {
+        const va: @Vector(16, f32) = a[i .. i + vec_size][0..16].*;
+        const vb: @Vector(16, f32) = b[i .. i + vec_size][0..16].*;
+        const vr = va + vb;
+        result[i .. i + vec_size][0..16].* = vr;
+    }
+
+    // Handle remaining elements
+    while (i < a.len) : (i += 1) {
+        result[i] = a[i] + b[i];
     }
 }
 
@@ -349,4 +396,122 @@ test "SIMD vector operations" {
         expected_dot += @as(f32, @floatFromInt(i)) * @as(f32, @floatFromInt(i + 1));
     }
     try testing.expect(@fabs(dot - expected_dot) < 0.001);
+}
+
+/// Optimized matrix multiplication with SIMD
+pub fn matrixMultiplyF32(a: []const f32, a_rows: usize, a_cols: usize, b: []const f32, b_rows: usize, b_cols: usize, c: []f32) SIMDError!void {
+    if (a_cols != b_rows) {
+        return SIMDError.InvalidLength;
+    }
+
+    if (a.len != a_rows * a_cols or b.len != b_rows * b_cols or c.len != a_rows * b_cols) {
+        return SIMDError.InvalidLength;
+    }
+
+    if (builtin.cpu.arch == .x86_64) {
+        if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx512f)) {
+            return matrixMultiplyF32AVX512(a, a_rows, a_cols, b, b_rows, b_cols, c);
+        } else if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) {
+            return matrixMultiplyF32AVX2(a, a_rows, a_cols, b, b_rows, b_cols, c);
+        }
+    }
+
+    // Fallback to optimized scalar implementation
+    return matrixMultiplyF32Scalar(a, a_rows, a_cols, b, b_rows, b_cols, c);
+}
+
+/// AVX-512 optimized matrix multiplication
+fn matrixMultiplyF32AVX512(a: []const f32, a_rows: usize, a_cols: usize, b: []const f32, b_rows: usize, b_cols: usize, c: []f32) void {
+    _ = b_rows; // Already validated
+    const vec_size = 16;
+
+    for (0..a_rows) |i| {
+        for (0..b_cols) |j| {
+            var sum: @Vector(16, f32) = @splat(0.0);
+            var k: usize = 0;
+
+            // Process 16 elements at a time
+            while (k + vec_size <= a_cols) : (k += vec_size) {
+                const va: @Vector(16, f32) = a[i * a_cols + k .. i * a_cols + k + vec_size][0..16].*;
+                var vb: @Vector(16, f32) = undefined;
+
+                // Gather elements from column j of matrix b
+                for (0..vec_size) |l| {
+                    vb[l] = b[(k + l) * b_cols + j];
+                }
+
+                sum += va * vb;
+            }
+
+            // Horizontal sum
+            var result: f32 = 0.0;
+            for (0..vec_size) |l| {
+                result += sum[l];
+            }
+
+            // Handle remaining elements
+            while (k < a_cols) : (k += 1) {
+                result += a[i * a_cols + k] * b[k * b_cols + j];
+            }
+
+            c[i * b_cols + j] = result;
+        }
+    }
+}
+
+/// AVX2 optimized matrix multiplication
+fn matrixMultiplyF32AVX2(a: []const f32, a_rows: usize, a_cols: usize, b: []const f32, b_rows: usize, b_cols: usize, c: []f32) void {
+    _ = b_rows; // Already validated
+    const vec_size = 8;
+
+    for (0..a_rows) |i| {
+        for (0..b_cols) |j| {
+            var sum: @Vector(8, f32) = @splat(0.0);
+            var k: usize = 0;
+
+            // Process 8 elements at a time
+            while (k + vec_size <= a_cols) : (k += vec_size) {
+                const va: @Vector(8, f32) = a[i * a_cols + k .. i * a_cols + k + vec_size][0..8].*;
+                var vb: @Vector(8, f32) = undefined;
+
+                // Gather elements from column j of matrix b
+                for (0..vec_size) |l| {
+                    vb[l] = b[(k + l) * b_cols + j];
+                }
+
+                sum += va * vb;
+            }
+
+            // Horizontal sum
+            var result: f32 = 0.0;
+            for (0..vec_size) |l| {
+                result += sum[l];
+            }
+
+            // Handle remaining elements
+            while (k < a_cols) : (k += 1) {
+                result += a[i * a_cols + k] * b[k * b_cols + j];
+            }
+
+            c[i * b_cols + j] = result;
+        }
+    }
+}
+
+/// Optimized scalar matrix multiplication with cache-friendly access patterns
+fn matrixMultiplyF32Scalar(a: []const f32, a_rows: usize, a_cols: usize, b: []const f32, b_rows: usize, b_cols: usize, c: []f32) void {
+    _ = b_rows; // Already validated
+
+    // Initialize result matrix
+    @memset(c, 0.0);
+
+    // Cache-friendly ikj loop order
+    for (0..a_rows) |i| {
+        for (0..a_cols) |k| {
+            const a_ik = a[i * a_cols + k];
+            for (0..b_cols) |j| {
+                c[i * b_cols + j] += a_ik * b[k * b_cols + j];
+            }
+        }
+    }
 }

@@ -82,6 +82,77 @@ pub fn build(b: *std.Build) void {
     const inference_test_step = b.step("test-inference", "Run real inference tests");
     inference_test_step.dependOn(&b.addRunArtifact(inference_test_exe).step);
 
+    // Create real model test executable
+    const real_model_test_exe = b.addExecutable(.{
+        .name = "test-real-model",
+        .root_source_file = .{ .path = "test_real_model.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to real model test executable
+    real_model_test_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    real_model_test_exe.addModule("zig-inference-engine", inference_engine_module);
+    real_model_test_exe.addModule("zig-tensor-core", tensor_core_module);
+    real_model_test_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create real model test step
+    const real_model_test_step = b.step("test-real-model", "Test real ONNX model loading");
+    real_model_test_step.dependOn(&b.addRunArtifact(real_model_test_exe).step);
+
+    // Create complete inference test executable
+    const complete_test_exe = b.addExecutable(.{
+        .name = "test-complete-inference",
+        .root_source_file = .{ .path = "test_complete_inference.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to complete inference test executable
+    complete_test_exe.addModule("zig-inference-engine", inference_engine_module);
+    complete_test_exe.addModule("zig-tensor-core", tensor_core_module);
+    complete_test_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create complete inference test step
+    const complete_test_step = b.step("test-complete", "Test complete inference pipeline");
+    complete_test_step.dependOn(&b.addRunArtifact(complete_test_exe).step);
+
+    // Create end-to-end test executable
+    const e2e_test_exe = b.addExecutable(.{
+        .name = "test-e2e-inference",
+        .root_source_file = .{ .path = "test_e2e_inference.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to e2e test executable
+    e2e_test_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    e2e_test_exe.addModule("zig-inference-engine", inference_engine_module);
+    e2e_test_exe.addModule("zig-tensor-core", tensor_core_module);
+    e2e_test_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create end-to-end test step
+    const e2e_test_step = b.step("test-e2e", "Test end-to-end inference with real models");
+    e2e_test_step.dependOn(&b.addRunArtifact(e2e_test_exe).step);
+
+    // Create performance benchmark executable
+    const benchmark_exe = b.addExecutable(.{
+        .name = "benchmark-performance",
+        .root_source_file = .{ .path = "benchmark_performance.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add modules to benchmark executable
+    benchmark_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    benchmark_exe.addModule("zig-inference-engine", inference_engine_module);
+    benchmark_exe.addModule("zig-tensor-core", tensor_core_module);
+    benchmark_exe.addModule("common-interfaces", common_interfaces_module);
+
+    // Create benchmark step
+    const benchmark_step = b.step("benchmark", "Run comprehensive performance benchmarks");
+    benchmark_step.dependOn(&b.addRunArtifact(benchmark_exe).step);
+
     // Create run step for the CLI
     const cli_run = b.addRunArtifact(cli_exe);
     cli_run.step.dependOn(b.getInstallStep());

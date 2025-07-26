@@ -12,7 +12,10 @@ pub const MathError = error{
     ShapeMismatch,
     UnsupportedDataType,
     InvalidOperation,
+    UnsupportedOperation,
     OutOfMemory,
+    InvalidLength,
+    AlignmentError,
 } || TensorError;
 
 /// Element-wise addition of two tensors

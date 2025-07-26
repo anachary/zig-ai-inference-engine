@@ -71,6 +71,9 @@ pub const ValidatorFn = @import("operators/registry.zig").ValidatorFn;
 pub const RegistryError = @import("operators/registry.zig").RegistryError;
 pub const RegistryStats = @import("operators/registry.zig").RegistryStats;
 
+// Re-export shape inference
+pub const ShapeInference = @import("engine/shape_inference.zig").ShapeInference;
+
 // Re-export task scheduler
 pub const TaskScheduler = @import("scheduler/scheduler.zig").TaskScheduler;
 pub const Task = @import("scheduler/scheduler.zig").Task;
