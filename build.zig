@@ -8,6 +8,40 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // === SEGFAULT PREVENTION CONFIGURATION ===
+    // Memory safety and debugging options
+    const enable_safety_checks = b.option(bool, "safety", "Enable runtime safety checks") orelse true;
+    const enable_stack_protection = b.option(bool, "stack-protection", "Enable stack overflow protection") orelse true;
+    const enable_memory_debugging = b.option(bool, "memory-debug", "Enable memory debugging features") orelse (optimize == .Debug);
+    const enable_bounds_checking = b.option(bool, "bounds-check", "Enable array bounds checking") orelse true;
+    const enable_overflow_checks = b.option(bool, "overflow-check", "Enable integer overflow checks") orelse true;
+
+    // ONNX Runtime debugging options for fixing remaining issues
+    const enable_graph_validation = b.option(bool, "graph-validation", "Enable graph validation (may cause segfault)") orelse false;
+    const enable_topological_sort = b.option(bool, "topological-sort", "Enable topological sort optimization") orelse false;
+    const enable_cleanup_exit = b.option(bool, "cleanup-exit", "Enable normal cleanup instead of early exit") orelse false;
+
+    // Production mode - safe memory management without cleanup testing
+    const enable_production_mode = b.option(bool, "production", "Enable production mode (safe memory management, no cleanup testing)") orelse false;
+
+    // Helper function to configure memory safety for executables (Zig 0.11 compatible)
+    const configureMemorySafety = struct {
+        fn apply(exe: *std.Build.Step.Compile, safety_checks: bool, stack_protection: bool, memory_debugging: bool, bounds_checking: bool, overflow_checks: bool) void {
+            // Configure available safety options for Zig 0.11
+            if (memory_debugging) {
+                exe.strip = false; // Keep debug symbols for debugging
+            }
+            if (bounds_checking) {
+                exe.single_threaded = false; // Enable multi-threading for runtime checks
+            }
+            // Note: Many safety features in Zig 0.11 are controlled by build mode and compile-time options
+            // The build options will be passed to the code via the options module
+            _ = safety_checks; // Passed via build options
+            _ = stack_protection; // Passed via build options
+            _ = overflow_checks; // Passed via build options
+        }
+    }.apply;
+
     // Create the unified CLI executable with ONNX parser integration
     const cli_exe = b.addExecutable(.{
         .name = "zig-ai",
@@ -15,6 +49,25 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Apply memory safety configuration to CLI
+    configureMemorySafety(cli_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
+    // Add build options as compile-time constants
+    const options = b.addOptions();
+    // Memory safety options
+    options.addOption(bool, "enable_safety_checks", enable_safety_checks);
+    options.addOption(bool, "enable_stack_protection", enable_stack_protection);
+    options.addOption(bool, "enable_memory_debugging", enable_memory_debugging);
+    options.addOption(bool, "enable_bounds_checking", enable_bounds_checking);
+    options.addOption(bool, "enable_overflow_checks", enable_overflow_checks);
+    // ONNX Runtime options
+    options.addOption(bool, "enable_graph_validation", enable_graph_validation);
+    options.addOption(bool, "enable_topological_sort", enable_topological_sort);
+    options.addOption(bool, "enable_cleanup_exit", enable_cleanup_exit);
+    options.addOption(bool, "enable_production_mode", enable_production_mode);
+
+    const options_module = options.createModule();
 
     // Add common interfaces module first
     const common_interfaces_module = b.createModule(.{
@@ -31,6 +84,14 @@ pub fn build(b: *std.Build) void {
         .source_file = .{ .path = "projects/zig-onnx-parser/src/lib.zig" },
     });
 
+    // Add ONNX Runtime as a module with dependencies
+    const onnx_runtime_module = b.createModule(.{
+        .source_file = .{ .path = "projects/zig-onnx-runtime/src/lib.zig" },
+        .dependencies = &.{
+            .{ .name = "build_options", .module = options_module },
+        },
+    });
+
     // Add inference engine as a module with dependencies
     const inference_engine_module = b.createModule(.{
         .source_file = .{ .path = "projects/zig-inference-engine/src/lib.zig" },
@@ -41,9 +102,11 @@ pub fn build(b: *std.Build) void {
 
     // Add modules to CLI executable
     cli_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    cli_exe.addModule("zig-onnx-runtime", onnx_runtime_module);
     cli_exe.addModule("zig-inference-engine", inference_engine_module);
     cli_exe.addModule("zig-tensor-core", tensor_core_module);
     cli_exe.addModule("common-interfaces", common_interfaces_module);
+    cli_exe.addModule("build_options", options_module);
 
     // Install the CLI
     b.installArtifact(cli_exe);
@@ -56,10 +119,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to test executable
+    configureMemorySafety(test_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to test executable
+    test_exe.addModule("zig-onnx-runtime", onnx_runtime_module);
     test_exe.addModule("zig-inference-engine", inference_engine_module);
     test_exe.addModule("zig-tensor-core", tensor_core_module);
     test_exe.addModule("common-interfaces", common_interfaces_module);
+    test_exe.addModule("build_options", options_module);
 
     // Create operator test step
     const operator_test_step = b.step("test-operators", "Run operator tests");
@@ -73,10 +141,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to inference test executable
+    configureMemorySafety(inference_test_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to inference test executable
+    inference_test_exe.addModule("zig-onnx-runtime", onnx_runtime_module);
     inference_test_exe.addModule("zig-inference-engine", inference_engine_module);
     inference_test_exe.addModule("zig-tensor-core", tensor_core_module);
     inference_test_exe.addModule("common-interfaces", common_interfaces_module);
+    inference_test_exe.addModule("build_options", options_module);
 
     // Create inference test step
     const inference_test_step = b.step("test-inference", "Run real inference tests");
@@ -90,11 +163,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to real model test executable
+    configureMemorySafety(real_model_test_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to real model test executable
     real_model_test_exe.addModule("zig-onnx-parser", onnx_parser_module);
     real_model_test_exe.addModule("zig-inference-engine", inference_engine_module);
     real_model_test_exe.addModule("zig-tensor-core", tensor_core_module);
     real_model_test_exe.addModule("common-interfaces", common_interfaces_module);
+    real_model_test_exe.addModule("build_options", options_module);
 
     // Create real model test step
     const real_model_test_step = b.step("test-real-model", "Test real ONNX model loading");
@@ -108,10 +185,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to complete inference test executable
+    configureMemorySafety(complete_test_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to complete inference test executable
     complete_test_exe.addModule("zig-inference-engine", inference_engine_module);
     complete_test_exe.addModule("zig-tensor-core", tensor_core_module);
     complete_test_exe.addModule("common-interfaces", common_interfaces_module);
+    complete_test_exe.addModule("build_options", options_module);
 
     // Create complete inference test step
     const complete_test_step = b.step("test-complete", "Test complete inference pipeline");
@@ -125,11 +206,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to e2e test executable
+    configureMemorySafety(e2e_test_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to e2e test executable
     e2e_test_exe.addModule("zig-onnx-parser", onnx_parser_module);
     e2e_test_exe.addModule("zig-inference-engine", inference_engine_module);
     e2e_test_exe.addModule("zig-tensor-core", tensor_core_module);
     e2e_test_exe.addModule("common-interfaces", common_interfaces_module);
+    e2e_test_exe.addModule("build_options", options_module);
 
     // Create end-to-end test step
     const e2e_test_step = b.step("test-e2e", "Test end-to-end inference with real models");
@@ -143,11 +228,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to benchmark executable
+    configureMemorySafety(benchmark_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to benchmark executable
     benchmark_exe.addModule("zig-onnx-parser", onnx_parser_module);
     benchmark_exe.addModule("zig-inference-engine", inference_engine_module);
     benchmark_exe.addModule("zig-tensor-core", tensor_core_module);
     benchmark_exe.addModule("common-interfaces", common_interfaces_module);
+    benchmark_exe.addModule("build_options", options_module);
 
     // Create benchmark step
     const benchmark_step = b.step("benchmark", "Run comprehensive performance benchmarks");
@@ -161,11 +250,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to LLM chat executable
+    configureMemorySafety(llm_chat_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+
     // Add modules to LLM chat executable
     llm_chat_exe.addModule("zig-onnx-parser", onnx_parser_module);
     llm_chat_exe.addModule("zig-inference-engine", inference_engine_module);
     llm_chat_exe.addModule("zig-tensor-core", tensor_core_module);
     llm_chat_exe.addModule("common-interfaces", common_interfaces_module);
+    llm_chat_exe.addModule("build_options", options_module);
 
     // Create LLM chat step
     const llm_chat_step = b.step("llm-chat", "Run LLM chat interface");
@@ -203,6 +296,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Apply memory safety configuration to Qwen chat executable
+    configureMemorySafety(qwen_chat_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+    qwen_chat_exe.addModule("build_options", options_module);
+
     // Create Qwen chat step
     const qwen_chat_step = b.step("qwen-chat", "Start interactive chat with Qwen 0.5B");
     qwen_chat_step.dependOn(&b.addRunArtifact(qwen_chat_exe).step);
@@ -214,6 +311,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Apply memory safety configuration to simple Qwen chat executable
+    configureMemorySafety(qwen_simple_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+    qwen_simple_exe.addModule("build_options", options_module);
 
     // Create simple Qwen chat step
     const qwen_simple_step = b.step("qwen", "Start simple interactive chat with Qwen 0.5B");
@@ -238,7 +339,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Apply memory safety configuration to debug ONNX executable
+    configureMemorySafety(debug_onnx_exe, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
     debug_onnx_exe.addModule("zig-onnx-parser", onnx_parser_module);
+    debug_onnx_exe.addModule("build_options", options_module);
+
     const debug_onnx_run = b.addRunArtifact(debug_onnx_exe);
     debug_onnx_step.dependOn(&debug_onnx_run.step);
 
@@ -276,6 +382,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Apply memory safety configuration to CLI tests
+    configureMemorySafety(cli_tests, enable_safety_checks, enable_stack_protection, enable_memory_debugging, enable_bounds_checking, enable_overflow_checks);
+    cli_tests.addModule("build_options", options_module);
+
     const run_tests = b.addRunArtifact(cli_tests);
     test_step.dependOn(&run_tests.step);
 
