@@ -4,7 +4,8 @@ const Metadata = @import("../../core/model.zig").Metadata;
 const Architecture = @import("../../core/model.zig").Architecture;
 const Tensor = @import("../../core/tensor.zig").DynamicTensor;
 const DataType = @import("../../core/tensor.zig").DataType;
-const quantization = @import("quantization.zig");
+const quantization = @import("../../quantization/mod.zig");
+const ggml = @import("../../quantization/ggml.zig");
 
 /// GGUF magic bytes
 const GGUF_MAGIC: u32 = 0x46554747; // "GGUF" in little-endian
@@ -88,56 +89,8 @@ pub const GGUFDataType = enum(u32) {
     }
 };
 
-/// GGUF tensor quantization types
-pub const GGMLType = enum(u32) {
-    f32 = 0,
-    f16 = 1,
-    q4_0 = 2,
-    q4_1 = 3,
-    q5_0 = 6,
-    q5_1 = 7,
-    q8_0 = 8,
-    q8_1 = 9,
-    q2_k = 10,
-    q3_k = 11,
-    q4_k = 12,
-    q5_k = 13,
-    q6_k = 14,
-    q8_k = 15,
-
-    pub fn toDataType(self: GGMLType) DataType {
-        return switch (self) {
-            .f32 => .f32,
-            .f16 => .f16,
-            else => .u8, // Quantized types stored as bytes
-        };
-    }
-
-    pub fn blockSize(self: GGMLType) usize {
-        return switch (self) {
-            .f32 => 4,
-            .f16 => 2,
-            .q4_0, .q4_1 => 20, // 16 4-bit values + 4 bytes metadata
-            .q5_0, .q5_1 => 24, // 16 5-bit values + 8 bytes metadata
-            .q8_0, .q8_1 => 34, // 32 8-bit values + 2 bytes metadata
-            .q2_k => 84,
-            .q3_k => 110,
-            .q4_k => 144,
-            .q5_k => 176,
-            .q6_k => 210,
-            .q8_k => 256,
-        };
-    }
-
-    pub fn elementsPerBlock(self: GGMLType) usize {
-        return switch (self) {
-            .f32, .f16 => 1,
-            .q4_0, .q4_1, .q5_0, .q5_1 => 32,
-            .q8_0, .q8_1 => 32,
-            .q2_k, .q3_k, .q4_k, .q5_k, .q6_k, .q8_k => 256,
-        };
-    }
-};
+/// GGUF tensor quantization types (re-export from quantization module)
+pub const GGMLType = ggml.GGMLType;
 
 /// GGUF header
 pub const GGUFHeader = struct {
@@ -378,7 +331,7 @@ pub const GGUFModel = struct {
 
         // Dequantize to F32
         const f32_data = std.mem.bytesAsSlice(f32, tensor.data);
-        quantization.dequantize(info.ggml_type, quantized_data, f32_data, self.allocator) catch |err| {
+        ggml.dequantize(info.ggml_type, quantized_data, f32_data, self.allocator) catch |err| {
             std.log.warn("Failed to dequantize tensor {s}: {}", .{ info.name, err });
             // Fallback: fill with zeros
             @memset(f32_data, 0.0);
@@ -809,7 +762,11 @@ fn readTensorInfo(reader: anytype, allocator: std.mem.Allocator) !GGUFTensorInfo
     }
 
     const ggml_type_raw = try reader.readIntLittle(u32);
-    const ggml_type: GGMLType = @enumFromInt(ggml_type_raw);
+    const ggml_type = ggml.fromTypeId(ggml_type_raw) catch |err| {
+        std.log.warn("Unknown GGML type ID: {}, defaulting to F32", .{ggml_type_raw});
+        _ = err;
+        return ggml.GGMLType.f32;
+    };
     const offset = try reader.readIntLittle(u64);
 
     return GGUFTensorInfo{

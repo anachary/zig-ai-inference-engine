@@ -24,6 +24,15 @@ pub const tokenizers = struct {
     pub const registry = @import("tokenizers/mod.zig");
 };
 
+// Neural network layers
+pub const layers = @import("layers/mod.zig");
+
+// Model architectures
+pub const models = @import("models/mod.zig");
+
+// Quantization algorithms
+pub const quantization = @import("quantization/mod.zig");
+
 // Inference engines
 pub const inference = struct {
     pub const transformer = @import("inference/transformer/mod.zig");
@@ -40,9 +49,6 @@ pub const memory = @import("memory/mod.zig");
 
 // Mathematical operations
 pub const math = @import("math/mod.zig");
-
-// Neural network layers
-pub const layers = @import("layers/mod.zig");
 
 // Neural network operators
 pub const operators = @import("operators/mod.zig");
