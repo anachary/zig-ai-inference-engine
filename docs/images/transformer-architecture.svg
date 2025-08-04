@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 20px; font-weight: bold; fill: #2c3e50; }
+      .section-title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #34495e; }
+      .text { font-family: Arial, sans-serif; font-size: 12px; fill: #2c3e50; }
+      .small-text { font-family: Arial, sans-serif; font-size: 10px; fill: #7f8c8d; }
+      .paper { fill: #e1f5fe; stroke: #0277bd; stroke-width: 2; }
+      .math { fill: #f3e5f5; stroke: #7b1fa2; stroke-width: 2; }
+      .architecture { fill: #e8f5e8; stroke: #2e7d32; stroke-width: 2; }
+      .implementation { fill: #fff3e0; stroke: #e65100; stroke-width: 2; }
+      .arrow { stroke: #34495e; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#34495e" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="500" y="30" text-anchor="middle" class="title">Transformer Architecture: Research Papers &amp; Mathematical Foundations</text>
+  
+  <!-- Research Papers Section -->
+  <rect x="50" y="60" width="900" height="120" rx="10" class="paper"/>
+  <text x="500" y="80" text-anchor="middle" class="section-title">📚 Research Foundation</text>
+  
+  <rect x="80" y="100" width="200" height="60" rx="5" class="paper"/>
+  <text x="180" y="115" text-anchor="middle" class="text">"Attention Is All You Need"</text>
+  <text x="180" y="130" text-anchor="middle" class="small-text">Vaswani et al. (2017)</text>
+  <text x="180" y="145" text-anchor="middle" class="small-text">Original Transformer</text>
+  
+  <rect x="300" y="100" width="200" height="60" rx="5" class="paper"/>
+  <text x="400" y="115" text-anchor="middle" class="text">"Language Models are</text>
+  <text x="400" y="130" text-anchor="middle" class="text">Unsupervised Multitask Learners"</text>
+  <text x="400" y="145" text-anchor="middle" class="small-text">Radford et al. (2019) - GPT-2</text>
+  
+  <rect x="520" y="100" width="200" height="60" rx="5" class="paper"/>
+  <text x="620" y="115" text-anchor="middle" class="text">"GLU Variants Improve</text>
+  <text x="620" y="130" text-anchor="middle" class="text">Transformer"</text>
+  <text x="620" y="145" text-anchor="middle" class="small-text">Shazeer (2020) - SwiGLU</text>
+  
+  <rect x="740" y="100" width="200" height="60" rx="5" class="paper"/>
+  <text x="840" y="115" text-anchor="middle" class="text">"RoFormer: Enhanced</text>
+  <text x="840" y="130" text-anchor="middle" class="text">Transformer with RoPE"</text>
+  <text x="840" y="145" text-anchor="middle" class="small-text">Su et al. (2021)</text>
+  
+  <!-- Input Processing -->
+  <rect x="50" y="220" width="900" height="100" rx="10" class="architecture"/>
+  <text x="500" y="240" text-anchor="middle" class="section-title">📝 Input Processing Layer</text>
+  
+  <rect x="100" y="260" width="150" height="40" rx="5" class="implementation"/>
+  <text x="175" y="275" text-anchor="middle" class="text">🔤 Tokenization</text>
+  <text x="175" y="290" text-anchor="middle" class="small-text">BPE Encoding</text>
+  
+  <rect x="280" y="260" width="150" height="40" rx="5" class="implementation"/>
+  <text x="355" y="275" text-anchor="middle" class="text">📊 Token Embeddings</text>
+  <text x="355" y="290" text-anchor="middle" class="small-text">E ∈ ℝ^(V×d)</text>
+  
+  <rect x="460" y="260" width="150" height="40" rx="5" class="implementation"/>
+  <text x="535" y="275" text-anchor="middle" class="text">📍 Position Embeddings</text>
+  <text x="535" y="290" text-anchor="middle" class="small-text">RoPE: θᵢ = 10000^(-2i/d)</text>
+  
+  <!-- Multi-Head Attention -->
+  <rect x="50" y="360" width="900" height="180" rx="10" class="architecture"/>
+  <text x="500" y="380" text-anchor="middle" class="section-title">🧮 Multi-Head Self-Attention</text>
+  
+  <rect x="100" y="400" width="120" height="60" rx="5" class="implementation"/>
+  <text x="160" y="420" text-anchor="middle" class="text">🔍 Query (Q)</text>
+  <text x="160" y="435" text-anchor="middle" class="small-text">Q = XWQ</text>
+  <text x="160" y="450" text-anchor="middle" class="small-text">WQ ∈ ℝ^(d×dk)</text>
+  
+  <rect x="240" y="400" width="120" height="60" rx="5" class="implementation"/>
+  <text x="300" y="420" text-anchor="middle" class="text">🔑 Key (K)</text>
+  <text x="300" y="435" text-anchor="middle" class="small-text">K = XWK</text>
+  <text x="300" y="450" text-anchor="middle" class="small-text">WK ∈ ℝ^(d×dk)</text>
+  
+  <rect x="380" y="400" width="120" height="60" rx="5" class="implementation"/>
+  <text x="440" y="420" text-anchor="middle" class="text">💎 Value (V)</text>
+  <text x="440" y="435" text-anchor="middle" class="small-text">V = XWV</text>
+  <text x="440" y="450" text-anchor="middle" class="small-text">WV ∈ ℝ^(d×dv)</text>
+  
+  <rect x="520" y="400" width="200" height="60" rx="5" class="math"/>
+  <text x="620" y="420" text-anchor="middle" class="text">⚡ Scaled Dot-Product</text>
+  <text x="620" y="435" text-anchor="middle" class="small-text">Attention(Q,K,V) = softmax(QK^T/√dk)V</text>
+  <text x="620" y="450" text-anchor="middle" class="small-text">Complexity: O(n²d)</text>
+  
+  <rect x="740" y="400" width="150" height="60" rx="5" class="implementation"/>
+  <text x="815" y="420" text-anchor="middle" class="text">🔗 Multi-Head</text>
+  <text x="815" y="435" text-anchor="middle" class="small-text">Concat(head₁,...,headₕ)</text>
+  <text x="815" y="450" text-anchor="middle" class="small-text">14 heads × 64 dims</text>
+  
+  <rect x="300" y="480" width="400" height="40" rx="5" class="math"/>
+  <text x="500" y="495" text-anchor="middle" class="text">MultiHead(Q,K,V) = Concat(head₁,...,headₕ)WO</text>
+  <text x="500" y="510" text-anchor="middle" class="small-text">headᵢ = Attention(QWQⁱ, KWKⁱ, VWVⁱ)</text>
+  
+  <!-- Feed-Forward Network -->
+  <rect x="50" y="580" width="900" height="180" rx="10" class="architecture"/>
+  <text x="500" y="600" text-anchor="middle" class="section-title">🔄 Feed-Forward Network (SwiGLU)</text>
+  
+  <rect x="100" y="620" width="120" height="60" rx="5" class="implementation"/>
+  <text x="160" y="640" text-anchor="middle" class="text">📏 Layer Norm</text>
+  <text x="160" y="655" text-anchor="middle" class="small-text">LayerNorm(x)</text>
+  <text x="160" y="670" text-anchor="middle" class="small-text">γ(x-μ)/σ + β</text>
+  
+  <rect x="240" y="620" width="120" height="60" rx="5" class="implementation"/>
+  <text x="300" y="640" text-anchor="middle" class="text">🚪 Gate Proj</text>
+  <text x="300" y="655" text-anchor="middle" class="small-text">Gate = xW₁</text>
+  <text x="300" y="670" text-anchor="middle" class="small-text">W₁ ∈ ℝ^(d×dff)</text>
+  
+  <rect x="380" y="620" width="120" height="60" rx="5" class="implementation"/>
+  <text x="440" y="640" text-anchor="middle" class="text">⬆️ Up Proj</text>
+  <text x="440" y="655" text-anchor="middle" class="small-text">Up = xW₃</text>
+  <text x="440" y="670" text-anchor="middle" class="small-text">W₃ ∈ ℝ^(d×dff)</text>
+  
+  <rect x="520" y="620" width="150" height="60" rx="5" class="math"/>
+  <text x="595" y="640" text-anchor="middle" class="text">🌊 SwiGLU</text>
+  <text x="595" y="655" text-anchor="middle" class="small-text">SiLU(Gate) ⊙ Up</text>
+  <text x="595" y="670" text-anchor="middle" class="small-text">SiLU(x) = x × σ(x)</text>
+  
+  <rect x="690" y="620" width="120" height="60" rx="5" class="implementation"/>
+  <text x="750" y="640" text-anchor="middle" class="text">⬇️ Down Proj</text>
+  <text x="750" y="655" text-anchor="middle" class="small-text">Out = SwiGLU × W₂</text>
+  <text x="750" y="670" text-anchor="middle" class="small-text">W₂ ∈ ℝ^(dff×d)</text>
+  
+  <rect x="300" y="700" width="400" height="40" rx="5" class="math"/>
+  <text x="500" y="715" text-anchor="middle" class="text">SwiGLU(x) = Swish(xW₁ + b₁) ⊙ (xW₃ + b₃)</text>
+  <text x="500" y="730" text-anchor="middle" class="small-text">Shazeer (2020): Better than ReLU for language models</text>
+  
+  <!-- Residual Connections -->
+  <rect x="50" y="780" width="900" height="80" rx="10" class="architecture"/>
+  <text x="500" y="800" text-anchor="middle" class="section-title">➕ Residual Connections &amp; Layer Normalization</text>
+  
+  <rect x="200" y="820" width="250" height="30" rx="5" class="implementation"/>
+  <text x="325" y="840" text-anchor="middle" class="text">x = x + Attention(LayerNorm(x))</text>
+  
+  <rect x="550" y="820" width="250" height="30" rx="5" class="implementation"/>
+  <text x="675" y="840" text-anchor="middle" class="text">x = x + FFN(LayerNorm(x))</text>
+  
+  <!-- Output Generation -->
+  <rect x="50" y="900" width="900" height="100" rx="10" class="architecture"/>
+  <text x="500" y="920" text-anchor="middle" class="section-title">📊 Output Generation</text>
+  
+  <rect x="150" y="940" width="150" height="40" rx="5" class="implementation"/>
+  <text x="225" y="955" text-anchor="middle" class="text">📏 Final LayerNorm</text>
+  <text x="225" y="970" text-anchor="middle" class="small-text">normalized hidden</text>
+  
+  <rect x="350" y="940" width="200" height="40" rx="5" class="math"/>
+  <text x="450" y="955" text-anchor="middle" class="text">🎯 Language Model Head</text>
+  <text x="450" y="970" text-anchor="middle" class="small-text">logits = normalized × Wlm</text>
+  
+  <rect x="600" y="940" width="200" height="40" rx="5" class="implementation"/>
+  <text x="700" y="955" text-anchor="middle" class="text">🎲 Sampling Strategy</text>
+  <text x="700" y="970" text-anchor="middle" class="small-text">Temperature, Top-K, Top-P</text>
+  
+  <!-- Mathematical Details -->
+  <rect x="50" y="1040" width="900" height="120" rx="10" class="math"/>
+  <text x="500" y="1060" text-anchor="middle" class="section-title">📐 Mathematical Foundations</text>
+  
+  <text x="100" y="1085" class="text">🔢 Attention Mechanism: Attention(Q,K,V) = softmax(QK^T/√dk)V</text>
+  <text x="100" y="1105" class="text">🧮 Qwen2-0.5B Dimensions: d=896, h=14, dff=4864, vocab=151,936</text>
+  <text x="100" y="1125" class="text">🎯 Autoregressive: P(xt|x&lt;t) = softmax(f(x&lt;t))t with causal masking</text>
+  <text x="100" y="1145" class="text">⚡ Complexity: O(L × n²d) for L layers, n sequence length, d model dimension</text>
+  
+  <!-- Arrows -->
+  <line x1="500" y1="180" x2="500" y2="220" class="arrow"/>
+  <line x1="500" y1="320" x2="500" y2="360" class="arrow"/>
+  <line x1="500" y1="540" x2="500" y2="580" class="arrow"/>
+  <line x1="500" y1="760" x2="500" y2="780" class="arrow"/>
+  <line x1="500" y1="860" x2="500" y2="900" class="arrow"/>
+  <line x1="500" y1="1000" x2="500" y2="1040" class="arrow"/>
+</svg>

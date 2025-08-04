@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 24px; font-weight: bold; fill: #2c3e50; }
+      .step-title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #34495e; }
+      .step-text { font-family: Arial, sans-serif; font-size: 12px; fill: #2c3e50; }
+      .complete { fill: #27ae60; stroke: #229954; stroke-width: 2; }
+      .incomplete { fill: #e74c3c; stroke: #c0392b; stroke-width: 2; }
+      .partial { fill: #f39c12; stroke: #e67e22; stroke-width: 2; }
+      .user { fill: #9b59b6; stroke: #8e44ad; stroke-width: 2; }
+      .arrow { stroke: #34495e; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#34495e" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" class="title">Interactive Chat Pipeline: From Question to AI Response</text>
+  
+  <!-- Step 1: User Input -->
+  <rect x="50" y="60" width="200" height="60" rx="10" class="user"/>
+  <text x="150" y="80" text-anchor="middle" class="step-title">👤 User Input</text>
+  <text x="150" y="100" text-anchor="middle" class="step-text">"What is machine learning?"</text>
+  
+  <!-- Step 2: Tokenization -->
+  <rect x="300" y="60" width="200" height="60" rx="10" class="complete"/>
+  <text x="400" y="80" text-anchor="middle" class="step-title">🔤 Tokenization</text>
+  <text x="400" y="100" text-anchor="middle" class="step-text">[1, 2061, 374, 5780, 6975, 30]</text>
+  
+  <!-- Step 3: Token Embedding -->
+  <rect x="550" y="60" width="200" height="60" rx="10" class="complete"/>
+  <text x="650" y="80" text-anchor="middle" class="step-title">📊 Token Embedding</text>
+  <text x="650" y="100" text-anchor="middle" class="step-text">Real weights: [6, 896]</text>
+  
+  <!-- Step 4: Transformer Layers -->
+  <rect x="800" y="60" width="200" height="60" rx="10" class="incomplete"/>
+  <text x="900" y="80" text-anchor="middle" class="step-title">🧠 24 Transformer Layers</text>
+  <text x="900" y="100" text-anchor="middle" class="step-text">Multi-head attention + FFN</text>
+  
+  <!-- Layer Detail Box -->
+  <rect x="50" y="160" width="950" height="200" rx="10" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="2"/>
+  <text x="525" y="180" text-anchor="middle" class="step-title">Transformer Layer Processing (Repeated 24 Times)</text>
+  
+  <!-- Attention Mechanism -->
+  <rect x="80" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <text x="170" y="220" text-anchor="middle" class="step-title">🔍 Multi-Head Attention</text>
+  <text x="170" y="240" text-anchor="middle" class="step-text">Q = input × Wq</text>
+  <text x="170" y="255" text-anchor="middle" class="step-text">K = input × Wk</text>
+  <text x="170" y="270" text-anchor="middle" class="step-text">V = input × Wv</text>
+  
+  <!-- Feed Forward -->
+  <rect x="300" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <text x="390" y="220" text-anchor="middle" class="step-title">🔄 Feed-Forward</text>
+  <text x="390" y="240" text-anchor="middle" class="step-text">Gate = input × W1</text>
+  <text x="390" y="255" text-anchor="middle" class="step-text">Up = input × W3</text>
+  <text x="390" y="270" text-anchor="middle" class="step-text">SwiGLU activation</text>
+  
+  <!-- Layer Norm -->
+  <rect x="520" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <text x="610" y="220" text-anchor="middle" class="step-title">📏 Layer Normalization</text>
+  <text x="610" y="240" text-anchor="middle" class="step-text">Stabilize training</text>
+  <text x="610" y="255" text-anchor="middle" class="step-text">Pre-norm architecture</text>
+  
+  <!-- Residual Connections -->
+  <rect x="740" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <text x="830" y="220" text-anchor="middle" class="step-title">➕ Residual Connections</text>
+  <text x="830" y="240" text-anchor="middle" class="step-text">output = input + layer(input)</text>
+  <text x="830" y="255" text-anchor="middle" class="step-text">Skip connections</text>
+  
+  <!-- Step 5: Output Generation -->
+  <rect x="50" y="400" width="200" height="60" rx="10" class="incomplete"/>
+  <text x="150" y="420" text-anchor="middle" class="step-title">📊 Output Logits</text>
+  <text x="150" y="440" text-anchor="middle" class="step-text">hidden × output_weights</text>
+  
+  <!-- Step 6: Token Sampling -->
+  <rect x="300" y="400" width="200" height="60" rx="10" class="complete"/>
+  <text x="400" y="420" text-anchor="middle" class="step-title">🎲 Token Sampling</text>
+  <text x="400" y="440" text-anchor="middle" class="step-text">Temperature, Top-K, Top-P</text>
+  
+  <!-- Step 7: Autoregressive Loop -->
+  <rect x="550" y="400" width="200" height="60" rx="10" class="incomplete"/>
+  <text x="650" y="420" text-anchor="middle" class="step-title">🔄 Autoregressive Loop</text>
+  <text x="650" y="440" text-anchor="middle" class="step-text">Generate word by word</text>
+  
+  <!-- Step 8: Final Response -->
+  <rect x="800" y="400" width="200" height="60" rx="10" class="user"/>
+  <text x="900" y="420" text-anchor="middle" class="step-title">💬 AI Response</text>
+  <text x="900" y="440" text-anchor="middle" class="step-text">"Machine learning is..."</text>
+  
+  <!-- Arrows -->
+  <line x1="250" y1="90" x2="300" y2="90" class="arrow"/>
+  <line x1="500" y1="90" x2="550" y2="90" class="arrow"/>
+  <line x1="750" y1="90" x2="800" y2="90" class="arrow"/>
+  <line x1="900" y1="120" x2="900" y2="160" class="arrow"/>
+  <line x1="525" y1="360" x2="525" y2="400" class="arrow"/>
+  <line x1="250" y1="430" x2="300" y2="430" class="arrow"/>
+  <line x1="500" y1="430" x2="550" y2="430" class="arrow"/>
+  <line x1="750" y1="430" x2="800" y2="430" class="arrow"/>
+  
+  <!-- Loop back arrow -->
+  <path d="M 650 460 Q 650 500 525 500 Q 400 500 400 460" class="arrow"/>
+  
+  <!-- Legend -->
+  <rect x="50" y="520" width="950" height="120" rx="10" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2"/>
+  <text x="525" y="540" text-anchor="middle" class="step-title">Implementation Status Legend</text>
+  
+  <rect x="100" y="560" width="30" height="20" class="complete"/>
+  <text x="140" y="575" class="step-text">✅ Complete - Working with real model weights</text>
+  
+  <rect x="400" y="560" width="30" height="20" class="incomplete"/>
+  <text x="440" y="575" class="step-text">❌ Not Implemented - Critical for real inference</text>
+  
+  <rect x="100" y="590" width="30" height="20" class="partial"/>
+  <text x="140" y="605" class="step-text">🔄 Partial - Framework exists, needs math operations</text>
+  
+  <rect x="400" y="590" width="30" height="20" class="user"/>
+  <text x="440" y="605" class="step-text">👤 User Interface - CLI interaction points</text>
+  
+  <!-- Technical Details -->
+  <rect x="50" y="660" width="950" height="120" rx="10" fill="#e8f4fd" stroke="#3498db" stroke-width="2"/>
+  <text x="525" y="680" text-anchor="middle" class="step-title">Technical Specifications (Qwen2-0.5B Model)</text>
+  
+  <text x="100" y="710" class="step-text">• Model Size: 500M parameters (379MB compressed)</text>
+  <text x="100" y="730" class="step-text">• Architecture: 24 layers × 14 attention heads × 896 dimensions</text>
+  <text x="100" y="750" class="step-text">• Vocabulary: 151,936 tokens (BPE encoding)</text>
+  
+  <text x="600" y="710" class="step-text">• Context Length: Up to 32,768 tokens</text>
+  <text x="600" y="730" class="step-text">• Quantization: Q4_K_M (4-bit weights)</text>
+  <text x="600" y="750" class="step-text">• Memory Usage: ~2-4GB during inference</text>
+</svg>
