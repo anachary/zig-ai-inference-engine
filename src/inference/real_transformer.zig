@@ -89,9 +89,9 @@ pub const RealTransformer = struct {
         return logits;
     }
 
-    /// Embed input tokens using real embedding weights
+    /// Embed input tokens using real dequantized embedding weights
     fn embedTokens(self: *RealTransformer, tokens: []const TokenId, emb_tensor: *DynamicTensor) !void {
-        std.log.debug("📊 Embedding {d} tokens...", .{tokens.len});
+        std.log.debug("📊 Embedding {d} tokens using real weights...", .{tokens.len});
 
         // Ensure we have hidden states allocated
         const hidden_states = self.hidden_states orelse return error.NotInitialized;
@@ -99,27 +99,42 @@ pub const RealTransformer = struct {
         // Clear hidden states
         @memset(hidden_states, 0.0);
 
-        // For each token, look up its embedding
+        // Embeddings are now always F32 after dequantization
+        if (emb_tensor.dtype != .f32) {
+            std.log.err("Expected F32 embeddings after dequantization, got: {s}", .{@tagName(emb_tensor.dtype)});
+            return error.InvalidEmbeddingType;
+        }
+
+        const emb_data = std.mem.bytesAsSlice(f32, emb_tensor.data);
+        const vocab_size = emb_tensor.shape[0];
+        const embedding_dim = emb_tensor.shape[1];
+
+        // Verify dimensions match model
+        if (embedding_dim != self.embedding_dim) {
+            std.log.warn("Embedding dimension mismatch: expected {d}, got {d}", .{ self.embedding_dim, embedding_dim });
+        }
+
+        // For each token, look up its embedding from dequantized weights
         for (tokens, 0..) |token_id, pos| {
             if (pos >= self.context_length) break;
+            if (token_id >= vocab_size) {
+                std.log.warn("Token ID {d} exceeds vocab size {d}", .{ token_id, vocab_size });
+                continue;
+            }
 
-            // Get embedding for this token
-            const emb_offset = token_id * self.embedding_dim;
+            // Get embedding for this token from real model weights
+            const emb_offset = token_id * embedding_dim;
             const pos_offset = pos * self.embedding_dim;
 
-            // Copy embedding to hidden states
-            // This is a simplified version - real implementation would handle quantization
-            if (emb_tensor.dtype == .f32) {
-                const emb_data = @as([*]f32, @ptrCast(@alignCast(emb_tensor.data.ptr)));
-                for (0..self.embedding_dim) |i| {
-                    if (emb_offset + i < emb_tensor.data.len / 4) { // f32 is 4 bytes
-                        hidden_states[pos_offset + i] = emb_data[emb_offset + i];
-                    }
+            // Copy real embedding to hidden states
+            for (0..@min(embedding_dim, self.embedding_dim)) |i| {
+                if (emb_offset + i < emb_data.len) {
+                    hidden_states[pos_offset + i] = emb_data[emb_offset + i];
                 }
             }
         }
 
-        std.log.debug("✅ Token embedding complete", .{});
+        std.log.debug("✅ Token embedding complete using real model weights", .{});
     }
 
     /// Process a single transformer layer
@@ -207,7 +222,10 @@ pub const RealTransformer = struct {
 
     /// Apply feed-forward network (simplified implementation)
     fn applyFeedForward(self: *RealTransformer, norm: *DynamicTensor, w1: *DynamicTensor, w2: *DynamicTensor, w3: *DynamicTensor) !void {
-        _ = norm; _ = w1; _ = w2; _ = w3; // Mark as used
+        _ = norm;
+        _ = w1;
+        _ = w2;
+        _ = w3; // Mark as used
 
         std.log.debug("🔄 Applying feed-forward...", .{});
 

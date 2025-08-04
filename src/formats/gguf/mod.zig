@@ -4,6 +4,7 @@ const Metadata = @import("../../core/model.zig").Metadata;
 const Architecture = @import("../../core/model.zig").Architecture;
 const Tensor = @import("../../core/tensor.zig").DynamicTensor;
 const DataType = @import("../../core/tensor.zig").DataType;
+const quantization = @import("quantization.zig");
 
 /// GGUF magic bytes
 const GGUF_MAGIC: u32 = 0x46554747; // "GGUF" in little-endian
@@ -348,13 +349,16 @@ pub const GGUFModel = struct {
     }
 
     fn loadTensor(self: *GGUFModel, info: *GGUFTensorInfo) !*Tensor {
+        std.log.debug("Loading tensor: {s} (type: {s})", .{ info.name, @tagName(info.ggml_type) });
+
         // Seek to tensor data
         try self.file.seekTo(self.data_offset + info.offset);
 
-        // Read tensor data
-        const data_size = info.sizeInBytes();
-        const data = try self.allocator.alloc(u8, data_size);
-        _ = try self.file.readAll(data);
+        // Read quantized tensor data
+        const quantized_size = info.sizeInBytes();
+        const quantized_data = try self.allocator.alloc(u8, quantized_size);
+        defer self.allocator.free(quantized_data);
+        _ = try self.file.readAll(quantized_data);
 
         // Convert dimensions to usize
         var dims = try self.allocator.alloc(usize, info.dimensions.len);
@@ -362,15 +366,25 @@ pub const GGUFModel = struct {
             dims[i] = @intCast(dim);
         }
 
-        // Create tensor
-        var tensor = try self.allocator.create(Tensor);
-        tensor.* = try Tensor.initFromSlice(
-            data,
-            info.ggml_type.toDataType(),
-            dims,
-            self.allocator,
-        );
+        // Calculate total elements
+        var total_elements: usize = 1;
+        for (dims) |dim| {
+            total_elements *= dim;
+        }
 
+        // Create tensor to hold dequantized F32 data
+        var tensor = try self.allocator.create(Tensor);
+        tensor.* = try Tensor.init(self.allocator, .f32, dims);
+
+        // Dequantize to F32
+        const f32_data = std.mem.bytesAsSlice(f32, tensor.data);
+        quantization.dequantize(info.ggml_type, quantized_data, f32_data, self.allocator) catch |err| {
+            std.log.warn("Failed to dequantize tensor {s}: {}", .{ info.name, err });
+            // Fallback: fill with zeros
+            @memset(f32_data, 0.0);
+        };
+
+        std.log.debug("Loaded and dequantized tensor: {s} with {d} elements", .{ info.name, total_elements });
         return tensor;
     }
 
