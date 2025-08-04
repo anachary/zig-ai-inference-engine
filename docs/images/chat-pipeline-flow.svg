@@ -35,33 +35,33 @@
   <text x="650" y="100" text-anchor="middle" class="step-text">Real weights: [6, 896]</text>
   
   <!-- Step 4: Transformer Layers -->
-  <rect x="800" y="60" width="200" height="60" rx="10" class="incomplete"/>
+  <rect x="800" y="60" width="200" height="60" rx="10" class="complete"/>
   <text x="900" y="80" text-anchor="middle" class="step-title">🧠 24 Transformer Layers</text>
-  <text x="900" y="100" text-anchor="middle" class="step-text">Multi-head attention + FFN</text>
+  <text x="900" y="100" text-anchor="middle" class="step-text">REAL matrix operations!</text>
   
   <!-- Layer Detail Box -->
   <rect x="50" y="160" width="950" height="200" rx="10" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="2"/>
   <text x="525" y="180" text-anchor="middle" class="step-title">Transformer Layer Processing (Repeated 24 Times)</text>
   
   <!-- Attention Mechanism -->
-  <rect x="80" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <rect x="80" y="200" width="180" height="80" rx="5" class="complete"/>
   <text x="170" y="220" text-anchor="middle" class="step-title">🔍 Multi-Head Attention</text>
-  <text x="170" y="240" text-anchor="middle" class="step-text">Q = input × Wq</text>
-  <text x="170" y="255" text-anchor="middle" class="step-text">K = input × Wk</text>
-  <text x="170" y="270" text-anchor="middle" class="step-text">V = input × Wv</text>
+  <text x="170" y="240" text-anchor="middle" class="step-text">✅ Q = input × Wq</text>
+  <text x="170" y="255" text-anchor="middle" class="step-text">✅ K = input × Wk</text>
+  <text x="170" y="270" text-anchor="middle" class="step-text">✅ V = input × Wv</text>
   
   <!-- Feed Forward -->
-  <rect x="300" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <rect x="300" y="200" width="180" height="80" rx="5" class="complete"/>
   <text x="390" y="220" text-anchor="middle" class="step-title">🔄 Feed-Forward</text>
-  <text x="390" y="240" text-anchor="middle" class="step-text">Gate = input × W1</text>
-  <text x="390" y="255" text-anchor="middle" class="step-text">Up = input × W3</text>
-  <text x="390" y="270" text-anchor="middle" class="step-text">SwiGLU activation</text>
+  <text x="390" y="240" text-anchor="middle" class="step-text">✅ Gate = input × W1</text>
+  <text x="390" y="255" text-anchor="middle" class="step-text">✅ Up = input × W3</text>
+  <text x="390" y="270" text-anchor="middle" class="step-text">✅ SwiGLU activation</text>
   
   <!-- Layer Norm -->
-  <rect x="520" y="200" width="180" height="80" rx="5" class="incomplete"/>
+  <rect x="520" y="200" width="180" height="80" rx="5" class="complete"/>
   <text x="610" y="220" text-anchor="middle" class="step-title">📏 Layer Normalization</text>
-  <text x="610" y="240" text-anchor="middle" class="step-text">Stabilize training</text>
-  <text x="610" y="255" text-anchor="middle" class="step-text">Pre-norm architecture</text>
+  <text x="610" y="240" text-anchor="middle" class="step-text">✅ Real normalization</text>
+  <text x="610" y="255" text-anchor="middle" class="step-text">✅ Learned weights</text>
   
   <!-- Residual Connections -->
   <rect x="740" y="200" width="180" height="80" rx="5" class="incomplete"/>
