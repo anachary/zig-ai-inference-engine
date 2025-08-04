@@ -2,95 +2,42 @@
 zig-cache/
 zig-out/
 
-# Build outputs
-*.exe
+# DLL and library files
 *.dll
+*.lib
+*.pdb
+*.obj
 *.so
 *.dylib
 *.a
-*.lib
-*.obj
-*.o
 
-# IDE and editor files
+# Model files (too large for git)
+models/*.gguf
+models/*.onnx
+models/*.safetensors
+models/*.bin
+models/*.pt
+models/*.pth
+
+# Keep model directory but ignore large files
+!models/README.md
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# Logs
-*.log
 
 # Temporary files
 *.tmp
 *.temp
-
-# Coverage reports
-coverage/
-*.gcov
-*.gcda
-*.gcno
-
-# Profiling data
-*.prof
-*.pprof
-
-# Local configuration
-.env
-.env.local
-
-# Documentation build artifacts
-docs/_build/
-docs/site/
-
-# Backup files
-*.bak
-*.backup
+*.log
 
 # Test artifacts
-test-results/
-test-output/
-
-# Benchmark results
-benchmark-results/
-
-# Model files (too large for Git, use Git LFS or download separately)
-models/*.onnx
-models/*.safetensors
-models/*.bin
-models/*.pt
-models/*.pth
-models/*.h5
-models/*.pb
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# API Keys and Secrets
-*.key
-*.pem
-*.p12
-*.pfx
-secrets.yaml
-secrets.json
-.secrets/
-
-# Strategic and Private Documents
-PRIVATE_REPOSITORY_SETUP.md
-strategic-planning/
-business-plans/
-confidential/
+test_*.zig
+*_test.exe

@@ -1,36 +1,48 @@
 # Models Directory
 
-This directory is for storing AI model files that will be used by the Zig AI Inference Engine.
+This directory contains AI models for testing the zig-ai-platform.
 
-## Model Files
+## Supported Formats
 
-Model files are not included in the repository due to their large size. They should be downloaded separately or via the CLI tool.
+- **GGUF** (✅ Implemented) - llama.cpp format with quantization
+- **ONNX** (🚧 Planned) - Industry standard format
+- **SafeTensors** (🚧 Planned) - Modern safe format
+- **PyTorch** (🚧 Planned) - Research format
 
-### Supported Model Formats
-- ONNX (.onnx)
-- SafeTensors (.safetensors)
-- PyTorch (.bin, .pt, .pth)
-- TensorFlow (.h5, .pb)
+## Example Models
 
-### Download Models
+For testing, you can download models from Hugging Face:
 
-Use the Zig AI CLI to download models:
+### Small Models (Good for Testing)
+```bash
+# Qwen2-0.5B (379 MB) - Fast inference
+wget https://huggingface.co/Qwen/Qwen2-0.5B-Instruct-GGUF/resolve/main/qwen2-0_5b-instruct-q4_k_m.gguf
+
+# TinyLlama (637 MB) - Very fast
+wget https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.q4_k_m.gguf
+```
+
+### Larger Models (More Capable)
+```bash
+# Llama-2-7B (3.2 GB) - High quality
+wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.q4_k_m.gguf
+
+# Mistral-7B (4.1 GB) - Latest architecture
+wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.q4_k_m.gguf
+```
+
+## Usage
+
+Once you have models in this directory, you can use them with the CLI:
 
 ```bash
-zig build cli -- download --model gpt2
-```
+# Detect model format
+zig build run -- detect models/your-model.gguf
 
-Or manually place your model files in this directory following the expected structure:
-
-```
-models/
-├── model_name/
-│   ├── model.onnx
-│   ├── vocab.json
-│   ├── tokenizer.json
-│   └── config.json
+# Start interactive chat
+zig build run -- chat models/your-model.gguf
 ```
 
 ## Note
 
-Large model files are automatically ignored by Git (see .gitignore). This keeps the repository lightweight while allowing local model storage.
+Model files are excluded from git due to their large size. Download them locally for testing.
