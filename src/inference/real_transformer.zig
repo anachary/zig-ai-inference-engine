@@ -8,11 +8,14 @@ const InferenceConfig = main_lib.core.InferenceConfig;
 const InferenceContext = main_lib.core.InferenceContext;
 const DynamicTensor = main_lib.core.DynamicTensor;
 const TokenId = main_lib.core.TokenId;
+const TransformerModel = main_lib.models.transformer.TransformerModel;
+const QwenModel = main_lib.models.qwen.QwenModel;
 
 /// Real transformer inference engine that uses actual model weights
 pub const RealTransformer = struct {
     model: *Model,
     allocator: std.mem.Allocator,
+    transformer: TransformerModel,
 
     // Model parameters extracted from GGUF
     vocab_size: u32,
@@ -21,71 +24,55 @@ pub const RealTransformer = struct {
     num_heads: u32,
     context_length: u32,
 
-    // Working memory for inference
-    hidden_states: ?[]f32,
-    attention_scores: ?[]f32,
-
     pub fn init(allocator: std.mem.Allocator, model: *Model) !RealTransformer {
         const metadata = model.getMetadata();
 
-        // Allocate working memory
-        const hidden_size = metadata.embedding_dim * metadata.context_length;
-        const hidden_states = try allocator.alloc(f32, hidden_size);
+        // Create model configuration from metadata
+        const model_config = main_lib.models.ModelConfig{
+            .vocab_size = metadata.vocab_size,
+            .hidden_size = metadata.embedding_dim,
+            .num_layers = metadata.num_layers,
+            .num_heads = metadata.num_heads,
+            .intermediate_size = metadata.embedding_dim * 4, // Standard 4x expansion
+            .max_position_embeddings = metadata.context_length,
+        };
 
-        const attention_size = metadata.num_heads * metadata.context_length * metadata.context_length;
-        const attention_scores = try allocator.alloc(f32, attention_size);
+        // Initialize transformer model
+        var transformer = try TransformerModel.init(allocator, model_config);
+
+        // Load weights from the GGUF model
+        try transformer.loadWeights(model);
 
         return RealTransformer{
             .model = model,
             .allocator = allocator,
+            .transformer = transformer,
             .vocab_size = metadata.vocab_size,
             .embedding_dim = metadata.embedding_dim,
             .num_layers = metadata.num_layers,
             .num_heads = metadata.num_heads,
             .context_length = metadata.context_length,
-            .hidden_states = hidden_states,
-            .attention_scores = attention_scores,
         };
     }
 
     pub fn deinit(self: *RealTransformer) void {
-        if (self.hidden_states) |states| {
-            self.allocator.free(states);
-        }
-        if (self.attention_scores) |scores| {
-            self.allocator.free(scores);
-        }
+        self.transformer.deinit();
     }
 
     /// Forward pass through the transformer with real tensor operations
     pub fn forward(self: *RealTransformer, tokens: []const TokenId, context: *InferenceContext) ![]f32 {
         _ = context;
-        std.log.info("🧠 Running REAL transformer forward pass...", .{});
+        std.log.info("🧠 Running REAL transformer forward pass with matrix operations...", .{});
         std.log.info("  Input tokens: {d}", .{tokens.len});
         std.log.info("  Model: {d} layers, {d} heads, {d}D embeddings", .{ self.num_layers, self.num_heads, self.embedding_dim });
-
-        // Get token embeddings tensor
-        const token_emb_tensor = self.model.getTensor("token_embd.weight") orelse
-            self.model.getTensor("tok_embeddings.weight") orelse {
-            std.log.err("❌ Token embeddings tensor not found!", .{});
-            return error.MissingTensor;
-        };
 
         // Allocate output logits
         const logits = try self.allocator.alloc(f32, self.vocab_size);
 
-        // Step 1: Token Embedding Lookup
-        try self.embedTokens(tokens, token_emb_tensor);
+        // Use the new transformer model for forward pass with real matrix operations
+        try self.transformer.forward(tokens, logits, self.allocator);
 
-        // Step 2: Process through transformer layers
-        for (0..self.num_layers) |layer_idx| {
-            try self.processLayer(@intCast(layer_idx));
-        }
-
-        // Step 3: Final layer norm and output projection
-        try self.computeOutputLogits(logits);
-
-        std.log.info("✅ Real forward pass complete, generated {d} logits", .{logits.len});
+        std.log.info("✅ Real forward pass complete with matrix operations, generated {d} logits", .{logits.len});
         return logits;
     }
 
