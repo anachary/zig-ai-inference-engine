@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font: bold 18px Arial; text-anchor: middle; }
+      .node { font: 12px Arial; text-anchor: middle; }
+      .subgraph-title { font: bold 14px Arial; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .decision { stroke: #333; stroke-width: 2; fill: #fff3e0; }
+      .process { stroke: #333; stroke-width: 2; fill: #e1f5fe; }
+      .output { stroke: #333; stroke-width: 2; fill: #c8e6c9; }
+      .attention { stroke: #333; stroke-width: 2; fill: #fff3e0; }
+      .ffn { stroke: #333; stroke-width: 2; fill: #fce4ec; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="600" y="30" class="title">GGUF File to AI Inference Pipeline</text>
+  
+  <!-- Main Pipeline -->
+  <rect x="50" y="60" width="120" height="40" class="process" rx="5"/>
+  <text x="110" y="85" class="node">GGUF File</text>
+  
+  <rect x="200" y="60" width="120" height="40" class="process" rx="5"/>
+  <text x="260" y="85" class="node">Header Validation</text>
+  
+  <rect x="350" y="60" width="120" height="40" class="process" rx="5"/>
+  <text x="410" y="85" class="node">Metadata Parsing</text>
+  
+  <rect x="500" y="60" width="120" height="40" class="process" rx="5"/>
+  <text x="560" y="85" class="node">Tensor Directory</text>
+  
+  <rect x="650" y="60" width="120" height="40" class="process" rx="5"/>
+  <text x="710" y="85" class="node">Weight Loading</text>
+  
+  <!-- Token Processing -->
+  <rect x="200" y="140" width="120" height="40" class="process" rx="5"/>
+  <text x="260" y="165" class="node">Token Embedding</text>
+  
+  <rect x="350" y="140" width="120" height="40" class="process" rx="5"/>
+  <text x="410" y="165" class="node">Layer Processing</text>
+  
+  <!-- Transformer Layer Details -->
+  <rect x="200" y="220" width="120" height="40" class="attention" rx="5"/>
+  <text x="260" y="245" class="node">Multi-Head Attention</text>
+  
+  <rect x="350" y="220" width="120" height="40" class="process" rx="5"/>
+  <text x="410" y="245" class="node">Layer Normalization</text>
+  
+  <rect x="500" y="220" width="120" height="40" class="ffn" rx="5"/>
+  <text x="560" y="245" class="node">Feed-Forward Network</text>
+  
+  <rect x="650" y="220" width="120" height="40" class="process" rx="5"/>
+  <text x="710" y="245" class="node">Residual Connection</text>
+  
+  <!-- Decision Point -->
+  <polygon points="410,300 450,320 410,340 370,320" class="decision"/>
+  <text x="410" y="325" class="node">More Layers?</text>
+  
+  <!-- Output Generation -->
+  <rect x="500" y="380" width="120" height="40" class="process" rx="5"/>
+  <text x="560" y="405" class="node">Output Projection</text>
+  
+  <rect x="650" y="380" width="120" height="40" class="process" rx="5"/>
+  <text x="710" y="405" class="node">Sampling Strategy</text>
+  
+  <rect x="800" y="380" width="120" height="40" class="process" rx="5"/>
+  <text x="860" y="405" class="node">Token Generation</text>
+  
+  <!-- Final Decision -->
+  <polygon points="860,460 900,480 860,500 820,480" class="decision"/>
+  <text x="860" y="485" class="node">Continue?</text>
+  
+  <rect x="950" y="460" width="120" height="40" class="output" rx="5"/>
+  <text x="1010" y="485" class="node">Final Response</text>
+  
+  <!-- GGUF Structure Subgraph -->
+  <rect x="50" y="540" width="300" height="200" fill="none" stroke="#666" stroke-dasharray="5,5"/>
+  <text x="200" y="560" class="subgraph-title">GGUF Structure</text>
+  
+  <text x="70" y="580" class="node">Magic: 0x46554747</text>
+  <text x="70" y="600" class="node">Version: 3</text>
+  <text x="70" y="620" class="node">Tensor Count: 291</text>
+  <text x="70" y="640" class="node">Metadata Count: 25</text>
+  <text x="220" y="580" class="node">Architecture: llama</text>
+  <text x="220" y="600" class="node">Embedding Dim: 896</text>
+  <text x="220" y="620" class="node">Layers: 24</text>
+  <text x="220" y="640" class="node">Heads: 14</text>
+  
+  <!-- Tensor Types Subgraph -->
+  <rect x="380" y="540" width="300" height="200" fill="none" stroke="#666" stroke-dasharray="5,5"/>
+  <text x="530" y="560" class="subgraph-title">Tensor Types</text>
+  
+  <text x="400" y="580" class="node">token_embd.weight</text>
+  <text x="400" y="600" class="node">blk.*.attn_q.weight</text>
+  <text x="400" y="620" class="node">blk.*.attn_k.weight</text>
+  <text x="400" y="640" class="node">blk.*.attn_v.weight</text>
+  <text x="550" y="580" class="node">blk.*.ffn_gate.weight</text>
+  <text x="550" y="600" class="node">blk.*.ffn_up.weight</text>
+  <text x="550" y="620" class="node">blk.*.ffn_down.weight</text>
+  <text x="550" y="640" class="node">output.weight</text>
+  
+  <!-- Quantization Subgraph -->
+  <rect x="710" y="540" width="200" height="120" fill="none" stroke="#666" stroke-dasharray="5,5"/>
+  <text x="810" y="560" class="subgraph-title">Quantization</text>
+  
+  <text x="730" y="580" class="node">Q4_K_M: 4-bit</text>
+  <text x="730" y="600" class="node">Dequantize to F32</text>
+  <text x="730" y="620" class="node">8x Compression</text>
+  
+  <!-- Arrows -->
+  <line x1="170" y1="80" x2="190" y2="80" class="arrow"/>
+  <line x1="320" y1="80" x2="340" y2="80" class="arrow"/>
+  <line x1="470" y1="80" x2="490" y2="80" class="arrow"/>
+  <line x1="620" y1="80" x2="640" y2="80" class="arrow"/>
+  
+  <line x1="710" y1="100" x2="710" y2="120" class="arrow"/>
+  <line x1="710" y1="120" x2="260" y2="120" class="arrow"/>
+  <line x1="260" y1="120" x2="260" y2="140" class="arrow"/>
+  
+  <line x1="320" y1="160" x2="340" y2="160" class="arrow"/>
+  <line x1="410" y1="180" x2="410" y2="200" class="arrow"/>
+  <line x1="410" y1="200" x2="260" y2="200" class="arrow"/>
+  <line x1="260" y1="200" x2="260" y2="220" class="arrow"/>
+  
+  <line x1="320" y1="240" x2="340" y2="240" class="arrow"/>
+  <line x1="470" y1="240" x2="490" y2="240" class="arrow"/>
+  <line x1="620" y1="240" x2="640" y2="240" class="arrow"/>
+  
+  <line x1="710" y1="260" x2="710" y2="280" class="arrow"/>
+  <line x1="710" y1="280" x2="410" y2="280" class="arrow"/>
+  <line x1="410" y1="280" x2="410" y2="300" class="arrow"/>
+  
+  <!-- Yes loop back -->
+  <line x1="370" y1="320" x2="320" y2="320" class="arrow"/>
+  <line x1="320" y1="320" x2="320" y2="160" class="arrow"/>
+  <text x="340" y="315" class="node">Yes</text>
+  
+  <!-- No continue -->
+  <line x1="450" y1="320" x2="560" y2="320" class="arrow"/>
+  <line x1="560" y1="320" x2="560" y2="380" class="arrow"/>
+  <text x="480" y="315" class="node">No</text>
+  
+  <line x1="620" y1="400" x2="640" y2="400" class="arrow"/>
+  <line x1="770" y1="400" x2="790" y2="400" class="arrow"/>
+  
+  <line x1="860" y1="420" x2="860" y2="460" class="arrow"/>
+  
+  <!-- Continue loop -->
+  <line x1="820" y1="480" x2="780" y2="480" class="arrow"/>
+  <line x1="780" y1="480" x2="780" y2="520" class="arrow"/>
+  <line x1="780" y1="520" x2="320" y2="520" class="arrow"/>
+  <line x1="320" y1="520" x2="320" y2="180" class="arrow"/>
+  <text x="800" y="475" class="node">Yes</text>
+  
+  <!-- No final -->
+  <line x1="900" y1="480" x2="940" y2="480" class="arrow"/>
+  <text x="920" y="475" class="node">No</text>
+</svg>
