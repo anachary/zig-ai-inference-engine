@@ -76,6 +76,91 @@ pub const RealTransformer = struct {
         return logits;
     }
 
+    /// Generate text autoregressively using real transformer with KV caching
+    pub fn generate(
+        self: *RealTransformer,
+        prompt_tokens: []const TokenId,
+        max_new_tokens: usize,
+        temperature: f32,
+    ) ![]TokenId {
+        std.log.info("🚀 Starting Week 4 autoregressive generation...", .{});
+        std.log.info("  Prompt tokens: {d}", .{prompt_tokens.len});
+        std.log.info("  Max new tokens: {d}", .{max_new_tokens});
+        std.log.info("  Temperature: {d:.2}", .{temperature});
+        std.log.info("  Using KV caching: ✅", .{});
+        std.log.info("  Context window: {d} tokens", .{self.context_length});
+
+        // Use the transformer's advanced autoregressive generation
+        const output_tokens = try self.transformer.generateTokens(
+            prompt_tokens,
+            max_new_tokens,
+            temperature,
+            self.allocator,
+        );
+
+        std.log.info("✅ Generated {d} total tokens ({d} new)", .{ output_tokens.len, output_tokens.len - prompt_tokens.len });
+        return output_tokens;
+    }
+
+    /// Generate text with streaming output for real-time responses
+    pub fn generateStreaming(
+        self: *RealTransformer,
+        prompt_tokens: []const TokenId,
+        max_new_tokens: usize,
+        temperature: f32,
+        callback: ?*const fn (token: u32) void,
+    ) ![]TokenId {
+        std.log.info("🌊 Starting streaming generation with real-time output...", .{});
+
+        const output_tokens = try self.transformer.generateStreaming(
+            prompt_tokens,
+            max_new_tokens,
+            temperature,
+            self.allocator,
+            callback,
+        );
+
+        std.log.info("✅ Streaming generation complete", .{});
+        return output_tokens;
+    }
+
+    /// Generate responses for multiple prompts in batch
+    pub fn generateBatch(
+        self: *RealTransformer,
+        prompts: []const []const TokenId,
+        max_new_tokens: usize,
+        temperature: f32,
+    ) ![][]TokenId {
+        std.log.info("📦 Starting batch generation for {d} prompts...", .{prompts.len});
+
+        const results = try self.transformer.generateBatch(
+            prompts,
+            max_new_tokens,
+            temperature,
+            self.allocator,
+        );
+
+        std.log.info("✅ Batch generation complete", .{});
+        return results;
+    }
+
+    /// Get generation statistics
+    pub fn getGenerationStats(self: *RealTransformer) struct {
+        context_length: u32,
+        vocab_size: u32,
+        num_layers: u32,
+        num_heads: u32,
+        kv_cache_enabled: bool,
+    } {
+        return .{
+            .context_length = self.context_length,
+            .vocab_size = self.vocab_size,
+            .num_layers = self.num_layers,
+            .num_heads = self.num_heads,
+            .kv_cache_enabled = self.transformer.kv_cache != null,
+        };
+    }
+
     /// Embed input tokens using real dequantized embedding weights
     fn embedTokens(self: *RealTransformer, tokens: []const TokenId, emb_tensor: *DynamicTensor) !void {
         std.log.debug("📊 Embedding {d} tokens using real weights...", .{tokens.len});

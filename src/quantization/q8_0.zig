@@ -45,7 +45,7 @@ pub fn dequantize(
         }
     }
 
-    std.log.debug("Q8_0 dequantization complete");
+    std.log.debug("Q8_0 dequantization complete", .{});
 }
 
 /// Calculate the number of F32 elements from Q8_0 data size

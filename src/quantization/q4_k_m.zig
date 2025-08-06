@@ -72,7 +72,7 @@ pub fn dequantize(
         }
     }
 
-    std.log.debug("Q4_K_M dequantization complete");
+    std.log.debug("Q4_K_M dequantization complete", .{});
 }
 
 /// Calculate the number of F32 elements from Q4_K_M data size

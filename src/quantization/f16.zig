@@ -99,7 +99,7 @@ pub fn dequantize(
         output[i] = f16ToF32(f16_val);
     }
 
-    std.log.debug("F16 dequantization complete");
+    std.log.debug("F16 dequantization complete", .{});
 }
 
 /// Quantize F32 array to F16 format

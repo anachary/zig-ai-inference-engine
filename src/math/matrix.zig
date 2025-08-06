@@ -42,6 +42,21 @@ pub const Matrix = struct {
         return matrix;
     }
 
+    /// Create a matrix from existing data slice (creates a view, no allocation)
+    pub fn fromSlice(allocator: std.mem.Allocator, data: []f32, rows: usize, cols: usize) !Matrix {
+        _ = allocator; // Not used for views
+        if (data.len < rows * cols) {
+            return error.InsufficientData;
+        }
+        return Matrix{
+            .data = data[0 .. rows * cols],
+            .rows = rows,
+            .cols = cols,
+            .stride = cols,
+            .allocator = null, // This is a view, not owned data
+        };
+    }
+
     pub fn deinit(self: *Matrix) void {
         if (self.allocator) |allocator| {
             allocator.free(self.data);
@@ -80,7 +95,7 @@ pub const Matrix = struct {
     pub fn view(self: Matrix, start_row: usize, start_col: usize, rows: usize, cols: usize) MatrixView {
         std.debug.assert(start_row + rows <= self.rows);
         std.debug.assert(start_col + cols <= self.cols);
-        
+
         const start_idx = start_row * self.stride + start_col;
         return MatrixView{
             .data = self.data[start_idx..],
@@ -144,8 +159,9 @@ pub fn matvec(a: Matrix, x: []const f32, y: []f32) !void {
 
 /// Element-wise addition: C = A + B
 pub fn add(a: Matrix, b: Matrix, c: *Matrix) !void {
-    if (a.rows != b.rows or a.cols != b.cols or 
-        c.rows != a.rows or c.cols != a.cols) {
+    if (a.rows != b.rows or a.cols != b.cols or
+        c.rows != a.rows or c.cols != a.cols)
+    {
         return error.IncompatibleDimensions;
     }
 
@@ -171,8 +187,9 @@ pub fn addScalar(a: Matrix, scalar: f32, c: *Matrix) !void {
 
 /// Element-wise multiplication: C = A ⊙ B
 pub fn hadamard(a: Matrix, b: Matrix, c: *Matrix) !void {
-    if (a.rows != b.rows or a.cols != b.cols or 
-        c.rows != a.rows or c.cols != a.cols) {
+    if (a.rows != b.rows or a.cols != b.cols or
+        c.rows != a.rows or c.cols != a.cols)
+    {
         return error.IncompatibleDimensions;
     }
 
@@ -236,12 +253,19 @@ test "matrix multiplication" {
     defer c.deinit();
 
     // Set up test matrices
-    a.set(0, 0, 1.0); a.set(0, 1, 2.0); a.set(0, 2, 3.0);
-    a.set(1, 0, 4.0); a.set(1, 1, 5.0); a.set(1, 2, 6.0);
+    a.set(0, 0, 1.0);
+    a.set(0, 1, 2.0);
+    a.set(0, 2, 3.0);
+    a.set(1, 0, 4.0);
+    a.set(1, 1, 5.0);
+    a.set(1, 2, 6.0);
 
-    b.set(0, 0, 7.0); b.set(0, 1, 8.0);
-    b.set(1, 0, 9.0); b.set(1, 1, 10.0);
-    b.set(2, 0, 11.0); b.set(2, 1, 12.0);
+    b.set(0, 0, 7.0);
+    b.set(0, 1, 8.0);
+    b.set(1, 0, 9.0);
+    b.set(1, 1, 10.0);
+    b.set(2, 0, 11.0);
+    b.set(2, 1, 12.0);
 
     try matmul(a, b, &c);
 

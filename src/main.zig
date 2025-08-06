@@ -39,6 +39,38 @@ pub const inference = struct {
     pub const graph = @import("inference/graph/mod.zig");
     pub const model_loader = @import("inference/model_loader.zig");
     pub const real_transformer = @import("inference/real_transformer.zig");
+    pub const SimpleChatInference = @import("inference/simple_chat.zig").SimpleChatInference;
+    pub const RealGGUFInference = @import("inference/real_gguf_inference.zig").RealGGUFInference;
+    pub const ModelLoader = @import("inference/model_loader.zig").ModelLoader;
+};
+
+// Week 5: Production Polish & Testing
+pub const performance = struct {
+    pub const PerformanceOptimizer = @import("performance/optimization.zig").PerformanceOptimizer;
+    pub const MemoryPool = @import("performance/optimization.zig").MemoryPool;
+    pub const SIMDOps = @import("performance/optimization.zig").SIMDOps;
+    pub const BatchProcessor = @import("performance/optimization.zig").BatchProcessor;
+    pub const Profiler = @import("performance/optimization.zig").Profiler;
+};
+
+pub const test_framework = struct {
+    pub const TestFramework = @import("testing/test_framework.zig").TestFramework;
+    pub const ModelCompatibilityTests = @import("testing/test_framework.zig").ModelCompatibilityTests;
+    pub const BenchmarkTests = @import("testing/test_framework.zig").BenchmarkTests;
+    pub const RobustnessTests = @import("testing/test_framework.zig").RobustnessTests;
+    pub const IntegrationTests = @import("testing/test_framework.zig").IntegrationTests;
+};
+
+pub const benchmarks = struct {
+    pub const BenchmarkSuite = @import("benchmarks/benchmark_suite.zig").BenchmarkSuite;
+    pub const CoreBenchmarks = @import("benchmarks/benchmark_suite.zig").CoreBenchmarks;
+    pub const ModelBenchmarks = @import("benchmarks/benchmark_suite.zig").ModelBenchmarks;
+};
+
+pub const error_handling = struct {
+    pub const ErrorHandler = @import("error_handling/robust_inference.zig").ErrorHandler;
+    pub const InputValidator = @import("error_handling/robust_inference.zig").InputValidator;
+    pub const MemoryMonitor = @import("error_handling/robust_inference.zig").MemoryMonitor;
 };
 
 // Compute backends
