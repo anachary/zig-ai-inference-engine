@@ -18,6 +18,8 @@ The zig-ai-platform is a production-ready AI inference library that loads and ru
 
 Zig gives us the performance of C with the safety of modern languages, plus unique advantages for AI workloads:
 
+> Note: For the authoritative, up-to-date src_v2 status, see src_v2/project-plan/CURRENT_STATUS.md. That document supersedes older claims in this roadmap while we converge the documentation.
+
 - **Comptime computation** - optimize models at build time
 - **Explicit memory management** - no hidden allocations in inference loops
 - **Cross compilation** - works out of the box for web, mobile, embedded

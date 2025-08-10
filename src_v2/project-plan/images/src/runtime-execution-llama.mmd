@@ -1,0 +1,21 @@
+sequenceDiagram
+  participant RT as RuntimeSession
+  participant K as Kernels (matmul, attention)
+  participant W as WeightStore
+
+  RT->>W: get(token_embd.weight)
+  RT->>K: embed tokens → hidden_0
+  loop layers
+    RT->>K: RMSNorm(hidden)
+    RT->>K: QKV projections (matmul)
+    RT->>K: RoPE on Q and K
+    RT->>K: scaled dot-prod attention (causal mask, KV cache)
+    RT->>K: output projection
+    RT->>K: residual add
+    RT->>K: pre-FFN RMSNorm
+    RT->>K: SwiGLU FFN
+    RT->>K: residual add
+  end
+  RT->>K: final projection → logits
+  RT-->>Caller: logits
+

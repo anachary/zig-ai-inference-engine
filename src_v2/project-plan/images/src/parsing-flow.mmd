@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant FS as Filesystem
+  participant GG as GGUF Parser
+  participant IR as ModelDescriptor/IR
+
+  GG->>FS: open(path)
+  GG->>FS: read header (magic, version)
+  GG->>FS: read metadata_kv_count
+  GG->>FS: iterate key/values (general.architecture, dims, tokenizer, etc.)
+  GG->>FS: read tensor directory (names, shapes, dtypes, offsets)
+  GG->>IR: build ModelDescriptor (arch, dims, rope, norm, vocab)
+  GG->>IR: build TensorMap (symbolic names → offsets)
+  GG-->>Caller: IR, TokenizerSpec, TensorMap
+

@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant U as User
+  participant C as CLI (chat)
+  participant L as Library (src_v2)
+  participant FR as FormatParserRegistry
+  participant AR as ArchitectureRegistry
+  participant RT as RuntimeSession
+
+  U->>C: zig-ai chat --model models/llama-2-7b-chat.gguf
+  C->>L: loadModel(path)
+  L->>FR: resolveFormat(head_bytes)
+  FR-->>L: "gguf"
+  L->>FR: parse(path)
+  FR-->>L: ModelDescriptor (IR), TokenizerSpec, TensorMap
+  L->>AR: get(ir.architecture="llama")
+  AR-->>L: LLaMA Runtime Impl
+  L->>RT: init(ir, weights, tokenizer)
+  RT-->>L: session
+  C->>L: generate(session, prompt, params)
+  L->>RT: forward+sample loop
+  RT-->>C: token stream
+  C-->>U: streamed text
+

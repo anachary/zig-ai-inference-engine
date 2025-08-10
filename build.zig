@@ -88,6 +88,12 @@ pub fn build(b: *std.Build) void {
         .{ .name = "load-gguf", .path = "examples/load_gguf.zig" },
         .{ .name = "tokenize", .path = "examples/tokenize.zig" },
         .{ .name = "inference", .path = "examples/inference.zig" },
+        .{ .name = "v2-inference", .path = "examples/v2_inference.zig" },
+        .{ .name = "v2-tokenizer-test", .path = "tests_v2/tokenizer_test.zig" },
+        .{ .name = "v2-tokenizer-unicode-test", .path = "tests_v2/tokenizer_unicode_test.zig" },
+        .{ .name = "v2-smoke-forward-test", .path = "tests_v2/smoke_forward_test.zig" },
+        .{ .name = "v2-tokenizer-stress-test", .path = "tests_v2/tokenizer_stress_test.zig" },
+        .{ .name = "v2-chat", .path = "examples/v2_chat_cli.zig" },
     };
 
     for (examples) |example| {
@@ -98,9 +104,13 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         });
 
-        // Add the library as a module to examples
+        // Add the primary library module
         exe.addModule("zig-ai-platform", b.createModule(.{
             .source_file = .{ .path = "src/main.zig" },
+        }));
+        // Add src_v2 API as a module for v2 examples
+        exe.addModule("src_v2", b.createModule(.{
+            .source_file = .{ .path = "src_v2/root.zig" },
         }));
 
         const install_exe = b.addInstallArtifact(exe, .{});

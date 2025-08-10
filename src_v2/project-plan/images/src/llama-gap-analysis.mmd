@@ -1,0 +1,34 @@
+flowchart TB
+  A[Goal: LLaMA Chat via src_v2] --> B[GGUF Parser + IR]
+  A --> C[Quantization + WeightStore]
+  A --> D[Tokenizer (GGUF)]
+  A --> E[LLaMA Runtime]
+  A --> F[Sampling Pipeline]
+  A --> G[CLI Chat]
+  A --> H[Tests & Validation]
+
+  B --> B1[Header + Metadata + Tensor Dir: DONE]
+  B --> B2[IR research knobs: DONE]
+
+  C --> C1[Quant modules (f16,q8_0,q4_k_m): DONE]
+  C --> C2[WeightStore & dequantizeInto: DONE]
+  C --> C3[Quantized size helper: GAP]
+
+  D --> D1[Load vocab/merges: GAP]
+  D --> D2[Tokenize/Detokenize: GAP]
+
+  E --> E1[Config mapping tensor views: GAP]
+  E --> E2[RMSNorm/RoPE/MHA/SwiGLU glue: GAP]
+  E --> E3[KV cache: GAP]
+  E --> E4[Forward() to logits: GAP]
+
+  F --> F1[Transforms + selectors: DONE]
+  F --> F2[Pipeline wired in generate(): PARTIAL]
+
+  G --> G1[CLI wiring to runtime/tokenizer: GAP]
+
+  H --> H1[Parser smoke tests: GAP]
+  H --> H2[Tokenizer tests: GAP]
+  H --> H3[Ops + runtime tests: GAP]
+  H --> H4[E2E single token: GAP]
+

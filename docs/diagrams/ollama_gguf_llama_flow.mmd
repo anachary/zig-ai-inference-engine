@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    participant CLI as CLI (v2-inference)
+    participant Core as core/api.generateN
+    participant Tok as Tokenizer (GGUF BPE)
+    participant RT as LLaMA Runtime (forward)
+    participant WS as WeightStore (dequant + cache)
+    participant Reg as Registries (rmsnorm/rope/attn/act)
+    participant KV as KV Cache
+    participant Samp as Sampling (greedy/top-k/top-p)
+    participant Out as Writer
+
+    CLI->>Core: prompt, flags (temperature, top-k, top-p, max-tokens, cache-mb)
+    Core->>Tok: tokenize(prompt)
+    Tok-->>Core: token ids
+
+    loop for each decode step
+        Core->>RT: forward(ctx_tokens) [measure fwd ms]
+        activate RT
+        RT->>Reg: resolve impls (rmsnorm, rope:llama, attn:cpu, act:swiglu)
+        note right of RT: for layer in [0..L)
+        RT->>WS: dequant Wq/Wk/Wv (cached?)
+        WS-->>RT: float32 weights (LRU cache)
+        RT->>Reg: rmsnorm(x)
+        RT->>RT: matmul x·Wq, x·Wk, x·Wv
+        RT->>Reg: rope.apply(q_head, k_head, theta)
+        RT->>KV: append K_t, V_t (layer, t)
+        KV-->>RT: K[0..t], V[0..t]
+        RT->>Reg: attn.compute(q, K[:t], V[:t])
+        RT->>WS: dequant Wo (cached?)
+        WS-->>RT: Wo
+        RT->>RT: x += attn_out·Wo
+        RT->>Reg: rmsnorm(x)
+        RT->>WS: dequant Wgate, Wup, Wdown (cached?)
+        WS-->>RT: Wgate/Wup/Wdown
+        RT->>Reg: act.swiglu(x·Wgate, x·Wup)
+        RT->>RT: x += (up·Wdown)
+        deactivate RT
+        RT-->>Core: hidden x
+        Core->>WS: dequant Wout (cached?)
+        WS-->>Core: Wout
+        Core->>Core: logits = x·Wout
+        Core->>Samp: select next token
+        Samp-->>Core: token id
+        Core->>Tok: detokenize(token id)
+        Tok-->>Core: utf8 piece
+        Core->>Out: stream piece [tN: Xms fwd:Yms]
+    end
+    Core-->>CLI: completed text
+
